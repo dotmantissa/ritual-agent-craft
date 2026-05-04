@@ -159,8 +159,8 @@ export const tickAgents = createServerFn({ method: "POST" })
         await supabase.from("agent_runs").insert({
           agent_id: agent.id,
           owner_id: userId,
-          trigger_payload: event,
-          ai_decision: decision,
+          trigger_payload: JSON.parse(JSON.stringify(event)),
+          ai_decision: JSON.parse(JSON.stringify(decision)),
           action_result: null,
           status: "skipped",
         });
@@ -172,9 +172,9 @@ export const tickAgents = createServerFn({ method: "POST" })
       await supabase.from("agent_runs").insert({
         agent_id: agent.id,
         owner_id: userId,
-        trigger_payload: event,
-        ai_decision: decision,
-        action_result: result,
+        trigger_payload: JSON.parse(JSON.stringify(event)),
+        ai_decision: JSON.parse(JSON.stringify(decision)),
+        action_result: JSON.parse(JSON.stringify(result)),
         status: result.success ? "success" : "failed",
         tx_hash: result.tx_hash,
       });
