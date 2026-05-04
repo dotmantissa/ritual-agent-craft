@@ -14,7 +14,136 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agent_runs: {
+        Row: {
+          action_result: Json | null
+          agent_id: string
+          ai_decision: Json | null
+          created_at: string
+          id: string
+          owner_id: string | null
+          status: string
+          trigger_payload: Json
+          triggered_at: string
+          tx_hash: string | null
+        }
+        Insert: {
+          action_result?: Json | null
+          agent_id: string
+          ai_decision?: Json | null
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          status: string
+          trigger_payload?: Json
+          triggered_at?: string
+          tx_hash?: string | null
+        }
+        Update: {
+          action_result?: Json | null
+          agent_id?: string
+          ai_decision?: Json | null
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          status?: string
+          trigger_payload?: Json
+          triggered_at?: string
+          tx_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          action: Json
+          ai_prompt: string | null
+          category: string | null
+          created_at: string
+          description: string | null
+          forked_from: string | null
+          id: string
+          is_template: boolean
+          name: string
+          owner_id: string | null
+          status: string
+          trigger: Json
+          updated_at: string
+        }
+        Insert: {
+          action?: Json
+          ai_prompt?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          forked_from?: string | null
+          id?: string
+          is_template?: boolean
+          name: string
+          owner_id?: string | null
+          status?: string
+          trigger?: Json
+          updated_at?: string
+        }
+        Update: {
+          action?: Json
+          ai_prompt?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          forked_from?: string | null
+          id?: string
+          is_template?: boolean
+          name?: string
+          owner_id?: string | null
+          status?: string
+          trigger?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agents_forked_from_fkey"
+            columns: ["forked_from"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          wallet_address: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          updated_at?: string
+          wallet_address?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
