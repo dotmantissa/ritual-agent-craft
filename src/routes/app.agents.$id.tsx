@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -169,35 +170,42 @@ function AgentDetail() {
         ) : (
           <ul className="divide-y divide-border">
             {runs.map((run) => (
-              <li key={run.id} className="px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <StatusIcon status={run.status} />
-                  <span className="font-mono-tabular text-xs text-muted-foreground">
-                    {new Date(run.created_at).toLocaleTimeString()}
-                  </span>
-                  <span className="text-sm">
-                    Trigger fired ·{" "}
+              <li key={run.id}>
+                <Link
+                  to="/app/runs/$id"
+                  params={{ id: run.id }}
+                  className="block px-5 py-4 transition-colors hover:bg-card/40"
+                >
+                  <div className="flex items-center gap-3">
+                    <StatusIcon status={run.status} />
                     <span className="font-mono-tabular text-xs text-muted-foreground">
-                      {(run.trigger_payload as { type?: string }).type ?? "event"}
+                      {new Date(run.created_at).toLocaleTimeString()}
                     </span>
-                  </span>
-                  {run.tx_hash && (
-                    <span className="ml-auto font-mono-tabular text-[10px] text-accent">
-                      {run.tx_hash.slice(0, 10)}…{run.tx_hash.slice(-6)}
+                    <span className="text-sm">
+                      Trigger fired ·{" "}
+                      <span className="font-mono-tabular text-xs text-muted-foreground">
+                        {(run.trigger_payload as { type?: string }).type ?? "event"}
+                      </span>
                     </span>
-                  )}
-                </div>
-                {run.ai_decision && (
-                  <div className="mt-2 ml-6 flex items-start gap-2 text-xs">
-                    <Brain className="mt-0.5 h-3 w-3 text-accent" />
-                    <span className="text-muted-foreground">
-                      <span className={cn("font-medium", run.ai_decision.act ? "text-success" : "text-warning")}>
-                        AI {run.ai_decision.act ? "ACT" : "SKIP"}:
-                      </span>{" "}
-                      {run.ai_decision.reason}
-                    </span>
+                    {run.tx_hash && (
+                      <span className="ml-auto font-mono-tabular text-[10px] text-accent">
+                        {run.tx_hash.slice(0, 10)}…{run.tx_hash.slice(-6)}
+                      </span>
+                    )}
+                    <ChevronRight className={cn("h-4 w-4 text-muted-foreground", run.tx_hash ? "ml-2" : "ml-auto")} />
                   </div>
-                )}
+                  {run.ai_decision && (
+                    <div className="mt-2 ml-6 flex items-start gap-2 text-xs">
+                      <Brain className="mt-0.5 h-3 w-3 text-accent" />
+                      <span className="text-muted-foreground">
+                        <span className={cn("font-medium", run.ai_decision.act ? "text-success" : "text-warning")}>
+                          AI {run.ai_decision.act ? "ACT" : "SKIP"}:
+                        </span>{" "}
+                        {run.ai_decision.reason}
+                      </span>
+                    </div>
+                  )}
+                </Link>
               </li>
             ))}
           </ul>
