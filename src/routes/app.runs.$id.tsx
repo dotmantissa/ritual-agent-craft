@@ -418,6 +418,7 @@ function LogsPanel({ run }: { run: Run }) {
           );
         })}
       </ol>
+      )}
     </div>
   );
 }
