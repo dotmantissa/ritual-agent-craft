@@ -186,9 +186,217 @@ function RunDetail() {
           <p className="text-sm text-muted-foreground">No result recorded.</p>
         )}
       </Section>
+
+      <LogsPanel run={run} />
     </div>
   );
 }
+
+type LogLevel = "info" | "success" | "warn" | "error";
+type LogEntry = {
+  ts: Date;
+  level: LogLevel;
+  source: string;
+  message: string;
+  icon: React.ComponentType<{ className?: string }>;
+  detail?: string;
+};
+
+function buildLogs(run: Run): LogEntry[] {
+  const triggered = new Date(run.triggered_at);
+  const created = new Date(run.created_at);
+  const entries: LogEntry[] = [];
+  const trig = run.trigger_payload as { type?: string; chain?: string; block?: number };
+
+  entries.push({
+    ts: triggered,
+    level: "info",
+    source: "watcher",
+    icon: Radio,
+    message: `Trigger detected · ${trig.type ?? "event"}`,
+    detail: trig.chain
+      ? `chain=${trig.chain}${trig.block ? ` block=${trig.block}` : ""}`
+      : undefined,
+  });
+
+  entries.push({
+    ts: new Date(triggered.getTime() + 120),
+    level: "info",
+    source: "runtime",
+    icon: Terminal,
+    message: "Loaded agent policy and trigger payload",
+  });
+
+  if (run.ai_decision) {
+    entries.push({
+      ts: new Date(triggered.getTime() + 380),
+      level: "info",
+      source: "ai",
+      icon: Cpu,
+      message: `Evaluating policy with ${run.ai_decision.model ?? "Lovable AI"}`,
+    });
+    entries.push({
+      ts: new Date(triggered.getTime() + 1240),
+      level: run.ai_decision.act ? "success" : "warn",
+      source: "ai",
+      icon: Cpu,
+      message: `Decision: ${run.ai_decision.act ? "ACT" : "SKIP"}`,
+      detail: run.ai_decision.reason,
+    });
+  } else {
+    entries.push({
+      ts: new Date(triggered.getTime() + 200),
+      level: "info",
+      source: "runtime",
+      icon: Terminal,
+      message: "No AI policy — proceeding to action",
+    });
+  }
+
+  if (run.status === "success") {
+    entries.push({
+      ts: new Date(created.getTime() - 200),
+      level: "info",
+      source: "chain",
+      icon: Send,
+      message: "Submitting transaction to mock chain",
+    });
+    const txHash = run.tx_hash;
+    const result = (run.action_result ?? {}) as {
+      action_type?: string;
+      gas_used?: number | string;
+      block?: number | string;
+    };
+    entries.push({
+      ts: created,
+      level: "success",
+      source: "chain",
+      icon: CheckCircle2,
+      message: `Transaction confirmed${result.action_type ? ` · ${result.action_type}` : ""}`,
+      detail: [
+        txHash ? `tx=${txHash}` : null,
+        result.block ? `block=${result.block}` : null,
+        result.gas_used ? `gas=${result.gas_used}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ") || undefined,
+    });
+  } else if (run.status === "skipped") {
+    entries.push({
+      ts: created,
+      level: "warn",
+      source: "runtime",
+      icon: CircleSlash,
+      message: "Run skipped — no transaction submitted",
+    });
+  } else if (run.status === "failed") {
+    entries.push({
+      ts: created,
+      level: "error",
+      source: "chain",
+      icon: AlertTriangle,
+      message: "Execution failed",
+      detail:
+        (run.action_result as { error?: string } | null)?.error ??
+        "See raw result for details",
+    });
+  }
+
+  return entries;
+}
+
+function LogsPanel({ run }: { run: Run }) {
+  const logs = buildLogs(run);
+  const start = logs[0]?.ts.getTime() ?? 0;
+
+  return (
+    <div className="glass relative overflow-hidden rounded-2xl scanline">
+      <div className="flex items-center justify-between border-b border-border px-5 py-3">
+        <div className="flex items-center gap-2">
+          <Terminal className="h-4 w-4 text-accent" />
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">
+            Run logs
+          </span>
+        </div>
+        <span className="font-mono-tabular text-[10px] text-muted-foreground">
+          {logs.length} steps
+        </span>
+      </div>
+      <ol className="relative">
+        {logs.map((log, i) => {
+          const delta = log.ts.getTime() - start;
+          const Icon = log.icon;
+          return (
+            <li
+              key={i}
+              className="relative flex gap-4 border-b border-border/60 px-5 py-3 last:border-b-0"
+            >
+              <div className="flex w-32 shrink-0 flex-col font-mono-tabular text-[10px] leading-tight text-muted-foreground">
+                <span>{log.ts.toLocaleTimeString(undefined, { hour12: false })}</span>
+                <span className="text-[9px] opacity-60">+{delta}ms</span>
+              </div>
+              <div className="flex shrink-0 items-start pt-0.5">
+                <span
+                  className={cn(
+                    "grid h-6 w-6 place-items-center rounded-md border",
+                    levelStyles(log.level),
+                  )}
+                >
+                  <Icon className="h-3 w-3" />
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "rounded px-1.5 py-px font-mono-tabular text-[9px] uppercase tracking-wider",
+                      sourceStyles(log.source),
+                    )}
+                  >
+                    {log.source}
+                  </span>
+                  <span className="text-sm text-foreground/90">{log.message}</span>
+                </div>
+                {log.detail && (
+                  <p className="mt-1 break-all font-mono-tabular text-[11px] text-muted-foreground">
+                    {log.detail}
+                  </p>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function levelStyles(level: LogLevel) {
+  switch (level) {
+    case "success":
+      return "border-success/40 bg-success/10 text-success";
+    case "warn":
+      return "border-warning/40 bg-warning/10 text-warning";
+    case "error":
+      return "border-destructive/40 bg-destructive/10 text-destructive";
+    default:
+      return "border-border bg-card/40 text-muted-foreground";
+  }
+}
+
+function sourceStyles(source: string) {
+  switch (source) {
+    case "ai":
+      return "bg-accent/15 text-accent";
+    case "chain":
+      return "bg-primary/15 text-primary";
+    case "watcher":
+      return "bg-success/15 text-success";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
 
 function StatusBadge({ status }: { status: Run["status"] }) {
   const Icon =
