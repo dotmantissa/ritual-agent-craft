@@ -305,25 +305,76 @@ function buildLogs(run: Run): LogEntry[] {
   return entries;
 }
 
+const ALL_SOURCES = ["watcher", "runtime", "ai", "chain"] as const;
+type Source = (typeof ALL_SOURCES)[number];
+
 function LogsPanel({ run }: { run: Run }) {
   const logs = buildLogs(run);
   const start = logs[0]?.ts.getTime() ?? 0;
+  const [active, setActive] = useState<Set<Source>>(
+    () => new Set(ALL_SOURCES),
+  );
+
+  const counts = logs.reduce<Record<string, number>>((acc, l) => {
+    acc[l.source] = (acc[l.source] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const toggle = (s: Source) => {
+    setActive((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      return next;
+    });
+  };
+
+  const visible = logs.filter((l) => active.has(l.source as Source));
 
   return (
     <div className="glass relative overflow-hidden rounded-2xl scanline">
-      <div className="flex items-center justify-between border-b border-border px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div className="flex items-center gap-2">
           <Terminal className="h-4 w-4 text-accent" />
           <span className="text-xs uppercase tracking-wider text-muted-foreground">
             Run logs
           </span>
         </div>
-        <span className="font-mono-tabular text-[10px] text-muted-foreground">
-          {logs.length} steps
-        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ALL_SOURCES.map((s) => {
+            const isActive = active.has(s);
+            const count = counts[s] ?? 0;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggle(s)}
+                disabled={count === 0}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider transition",
+                  count === 0 && "opacity-40",
+                  isActive
+                    ? sourceStyles(s) + " border-transparent"
+                    : "border-border bg-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <span>{s}</span>
+                <span className="opacity-70">{count}</span>
+              </button>
+            );
+          })}
+          <span className="ml-2 font-mono-tabular text-[10px] text-muted-foreground">
+            {visible.length}/{logs.length}
+          </span>
+        </div>
       </div>
+      {visible.length === 0 ? (
+        <div className="px-5 py-8 text-center font-mono-tabular text-[11px] text-muted-foreground">
+          No steps match the selected filters.
+        </div>
+      ) : (
       <ol className="relative">
-        {logs.map((log, i) => {
+        {visible.map((log, i) => {
           const delta = log.ts.getTime() - start;
           const Icon = log.icon;
           return (
@@ -367,6 +418,7 @@ function LogsPanel({ run }: { run: Run }) {
           );
         })}
       </ol>
+      )}
     </div>
   );
 }
