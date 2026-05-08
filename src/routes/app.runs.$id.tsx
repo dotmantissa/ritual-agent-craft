@@ -316,6 +316,7 @@ function LogsPanel({ run }: { run: Run }) {
   const [active, setActive] = useState<Set<Source>>(
     () => new Set(ALL_SOURCES),
   );
+  const [query, setQuery] = useState("");
 
   const counts = logs.reduce<Record<string, number>>((acc, l) => {
     acc[l.source] = (acc[l.source] ?? 0) + 1;
@@ -331,48 +332,94 @@ function LogsPanel({ run }: { run: Run }) {
     });
   };
 
-  const visible = logs.filter((l) => active.has(l.source as Source));
+  const q = query.trim().toLowerCase();
+  const visible = logs.filter((l) => {
+    if (!active.has(l.source as Source)) return false;
+    if (!q) return true;
+    return (
+      l.message.toLowerCase().includes(q) ||
+      l.source.toLowerCase().includes(q) ||
+      (l.detail?.toLowerCase().includes(q) ?? false)
+    );
+  });
+
+  function highlight(text: string) {
+    if (!q) return text;
+    const i = text.toLowerCase().indexOf(q);
+    if (i === -1) return text;
+    return (
+      <>
+        {text.slice(0, i)}
+        <mark className="rounded bg-accent/30 px-0.5 text-accent-foreground">
+          {text.slice(i, i + q.length)}
+        </mark>
+        {text.slice(i + q.length)}
+      </>
+    );
+  }
 
   return (
     <div className="glass relative overflow-hidden rounded-2xl scanline">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <div className="flex items-center gap-2">
-          <Terminal className="h-4 w-4 text-accent" />
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
-            Run logs
-          </span>
+      <div className="flex flex-col gap-3 border-b border-border px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Terminal className="h-4 w-4 text-accent" />
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              Run logs
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {ALL_SOURCES.map((s) => {
+              const isActive = active.has(s);
+              const count = counts[s] ?? 0;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => toggle(s)}
+                  disabled={count === 0}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider transition",
+                    count === 0 && "opacity-40",
+                    isActive
+                      ? sourceStyles(s) + " border-transparent"
+                      : "border-border bg-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span>{s}</span>
+                  <span className="opacity-70">{count}</span>
+                </button>
+              );
+            })}
+            <span className="ml-2 font-mono-tabular text-[10px] text-muted-foreground">
+              {visible.length}/{logs.length}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {ALL_SOURCES.map((s) => {
-            const isActive = active.has(s);
-            const count = counts[s] ?? 0;
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggle(s)}
-                disabled={count === 0}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider transition",
-                  count === 0 && "opacity-40",
-                  isActive
-                    ? sourceStyles(s) + " border-transparent"
-                    : "border-border bg-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <span>{s}</span>
-                <span className="opacity-70">{count}</span>
-              </button>
-            );
-          })}
-          <span className="ml-2 font-mono-tabular text-[10px] text-muted-foreground">
-            {visible.length}/{logs.length}
-          </span>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search logs · tx hash, decision, message…"
+            className="w-full rounded-md border border-border bg-background/40 py-1.5 pl-8 pr-8 font-mono-tabular text-[11px] text-foreground placeholder:text-muted-foreground focus:border-accent/50 focus:outline-none"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
       {visible.length === 0 ? (
         <div className="px-5 py-8 text-center font-mono-tabular text-[11px] text-muted-foreground">
-          No steps match the selected filters.
+          {q ? `No steps match "${query}".` : "No steps match the selected filters."}
         </div>
       ) : (
       <ol className="relative">
