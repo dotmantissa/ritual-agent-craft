@@ -455,11 +455,11 @@ function LogsPanel({ run }: { run: Run }) {
                   >
                     {log.source}
                   </span>
-                  <span className="text-sm text-foreground/90">{log.message}</span>
+                  <span className="text-sm text-foreground/90">{highlight(log.message)}</span>
                 </div>
                 {log.detail && (
                   <p className="mt-1 break-all font-mono-tabular text-[11px] text-muted-foreground">
-                    {log.detail}
+                    {highlight(log.detail)}
                   </p>
                 )}
               </div>
