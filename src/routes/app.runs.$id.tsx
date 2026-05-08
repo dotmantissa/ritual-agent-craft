@@ -11,6 +11,11 @@ import {
   Receipt,
   Copy,
   Clock,
+  Terminal,
+  Radio,
+  Cpu,
+  Send,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
