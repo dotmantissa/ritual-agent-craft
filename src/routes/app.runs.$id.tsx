@@ -437,6 +437,33 @@ function LogsPanel({ run }: { run: Run }) {
             <span className="text-xs uppercase tracking-wider text-muted-foreground">
               Run logs
             </span>
+            {(() => {
+              const hashes = Array.from(
+                new Set(
+                  visible.flatMap((l) => [
+                    ...(l.message.match(TX_HASH_RE) ?? []),
+                    ...((l.detail?.match(TX_HASH_RE)) ?? []),
+                  ]),
+                ),
+              );
+              if (hashes.length === 0) return null;
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(hashes.join("\n"));
+                    toast.success(
+                      `Copied ${hashes.length} tx hash${hashes.length === 1 ? "" : "es"}`,
+                    );
+                  }}
+                  className="ml-1 inline-flex items-center gap-1 rounded-md border border-accent/30 bg-accent/5 px-2 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider text-accent hover:bg-accent/10"
+                  title="Copy all visible tx hashes"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy tx · {hashes.length}
+                </button>
+              );
+            })()}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {ALL_SOURCES.map((s) => {
