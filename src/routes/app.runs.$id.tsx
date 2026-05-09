@@ -387,17 +387,34 @@ function LogsPanel({ run }: { run: Run }) {
       }
       const hash = m[0];
       out.push(
-        <a
+        <span
           key={`tx-${key++}`}
-          href={explorerUrl(hash)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 rounded border border-accent/30 bg-accent/5 px-1 py-px text-accent hover:bg-accent/10"
-          title="View on explorer"
+          className="inline-flex items-center gap-0.5 align-baseline"
         >
-          {highlightMatch(hash, `tx${key}`)}
-          <ExternalLink className="h-2.5 w-2.5" />
-        </a>,
+          <a
+            href={explorerUrl(hash)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-l border border-r-0 border-accent/30 bg-accent/5 px-1 py-px text-accent hover:bg-accent/10"
+            title="View on explorer"
+          >
+            {highlightMatch(hash, `tx${key}`)}
+            <ExternalLink className="h-2.5 w-2.5" />
+          </a>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              navigator.clipboard.writeText(hash);
+              toast.success("Tx hash copied");
+            }}
+            className="inline-flex items-center rounded-r border border-accent/30 bg-accent/5 px-1 py-px text-accent hover:bg-accent/10"
+            title="Copy tx hash"
+            aria-label="Copy tx hash"
+          >
+            <Copy className="h-2.5 w-2.5" />
+          </button>
+        </span>,
       );
       last = m.index + hash.length;
     }
