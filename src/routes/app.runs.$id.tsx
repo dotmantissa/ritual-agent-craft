@@ -438,30 +438,58 @@ function LogsPanel({ run }: { run: Run }) {
               Run logs
             </span>
             {(() => {
-              const hashes = Array.from(
-                new Set(
-                  visible.flatMap((l) => [
-                    ...(l.message.match(TX_HASH_RE) ?? []),
-                    ...((l.detail?.match(TX_HASH_RE)) ?? []),
-                  ]),
-                ),
-              );
+              const rows = visible.flatMap((l) => {
+                const found = [
+                  ...(l.message.match(TX_HASH_RE) ?? []),
+                  ...((l.detail?.match(TX_HASH_RE)) ?? []),
+                ];
+                return found.map((hash) => ({
+                  timestamp: l.ts.toISOString(),
+                  source: l.source,
+                  tx_hash: hash,
+                }));
+              });
+              const hashes = Array.from(new Set(rows.map((r) => r.tx_hash)));
               if (hashes.length === 0) return null;
+              const csvEscape = (v: string) =>
+                /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
               return (
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(hashes.join("\n"));
-                    toast.success(
-                      `Copied ${hashes.length} tx hash${hashes.length === 1 ? "" : "es"}`,
-                    );
-                  }}
-                  className="ml-1 inline-flex items-center gap-1 rounded-md border border-accent/30 bg-accent/5 px-2 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider text-accent hover:bg-accent/10"
-                  title="Copy all visible tx hashes"
-                >
-                  <Copy className="h-3 w-3" />
-                  Copy tx · {hashes.length}
-                </button>
+                <div className="ml-1 inline-flex overflow-hidden rounded-md border border-accent/30 bg-accent/5 text-accent">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(hashes.join("\n"));
+                      toast.success(
+                        `Copied ${hashes.length} tx hash${hashes.length === 1 ? "" : "es"}`,
+                      );
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider hover:bg-accent/10"
+                    title="Copy as plain lines"
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy tx · {hashes.length}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const header = "timestamp,source,tx_hash";
+                      const body = rows
+                        .map(
+                          (r) =>
+                            `${csvEscape(r.timestamp)},${csvEscape(r.source)},${csvEscape(r.tx_hash)}`,
+                        )
+                        .join("\n");
+                      navigator.clipboard.writeText(`${header}\n${body}`);
+                      toast.success(
+                        `Copied ${rows.length} row${rows.length === 1 ? "" : "s"} as CSV`,
+                      );
+                    }}
+                    className="inline-flex items-center gap-1 border-l border-accent/30 px-2 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider hover:bg-accent/10"
+                    title="Copy as CSV with header"
+                  >
+                    CSV
+                  </button>
+                </div>
               );
             })()}
           </div>
