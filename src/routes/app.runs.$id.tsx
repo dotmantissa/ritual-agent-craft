@@ -321,6 +321,17 @@ function LogsPanel({ run }: { run: Run }) {
     () => new Set(ALL_SOURCES),
   );
   const [query, setQuery] = useState("");
+  const [copySources, setCopySources] = useState<Set<Source>>(
+    () => new Set(ALL_SOURCES),
+  );
+  const toggleCopySource = (s: Source) => {
+    setCopySources((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      return next;
+    });
+  };
 
   const counts = logs.reduce<Record<string, number>>((acc, l) => {
     acc[l.source] = (acc[l.source] ?? 0) + 1;
