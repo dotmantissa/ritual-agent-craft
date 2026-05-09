@@ -18,7 +18,11 @@ import {
   AlertTriangle,
   Search,
   X,
+  ExternalLink,
 } from "lucide-react";
+
+const TX_HASH_RE = /0x[a-fA-F0-9]{16,}/g;
+const explorerUrl = (hash: string) => `https://mockscan.ritual.dev/tx/${hash}`;
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
