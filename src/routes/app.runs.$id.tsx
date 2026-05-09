@@ -345,17 +345,26 @@ function LogsPanel({ run }: { run: Run }) {
 
   function highlight(text: string) {
     if (!q) return text;
-    const i = text.toLowerCase().indexOf(q);
-    if (i === -1) return text;
-    return (
-      <>
-        {text.slice(0, i)}
-        <mark className="rounded bg-accent/30 px-0.5 text-accent-foreground">
+    const lower = text.toLowerCase();
+    const parts: React.ReactNode[] = [];
+    let cursor = 0;
+    let i = lower.indexOf(q, cursor);
+    let key = 0;
+    while (i !== -1) {
+      if (i > cursor) parts.push(text.slice(cursor, i));
+      parts.push(
+        <mark
+          key={key++}
+          className="rounded bg-accent/30 px-0.5 text-accent-foreground"
+        >
           {text.slice(i, i + q.length)}
-        </mark>
-        {text.slice(i + q.length)}
-      </>
-    );
+        </mark>,
+      );
+      cursor = i + q.length;
+      i = lower.indexOf(q, cursor);
+    }
+    if (cursor < text.length) parts.push(text.slice(cursor));
+    return <>{parts}</>;
   }
 
   return (
