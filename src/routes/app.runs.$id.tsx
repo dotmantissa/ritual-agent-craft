@@ -347,7 +347,7 @@ function LogsPanel({ run }: { run: Run }) {
     );
   });
 
-  function highlight(text: string) {
+  function highlightMatch(text: string, keyPrefix: string): React.ReactNode {
     if (!q) return text;
     const lower = text.toLowerCase();
     const parts: React.ReactNode[] = [];
@@ -358,7 +358,7 @@ function LogsPanel({ run }: { run: Run }) {
       if (i > cursor) parts.push(text.slice(cursor, i));
       parts.push(
         <mark
-          key={key++}
+          key={`${keyPrefix}-m-${key++}`}
           className="rounded bg-accent/30 px-0.5 text-accent-foreground"
         >
           {text.slice(i, i + q.length)}
@@ -369,6 +369,46 @@ function LogsPanel({ run }: { run: Run }) {
     }
     if (cursor < text.length) parts.push(text.slice(cursor));
     return <>{parts}</>;
+  }
+
+  function highlight(text: string): React.ReactNode {
+    const out: React.ReactNode[] = [];
+    let last = 0;
+    let key = 0;
+    const re = new RegExp(TX_HASH_RE.source, "g");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) {
+        out.push(
+          <span key={`t-${key++}`}>
+            {highlightMatch(text.slice(last, m.index), `t${key}`)}
+          </span>,
+        );
+      }
+      const hash = m[0];
+      out.push(
+        <a
+          key={`tx-${key++}`}
+          href={explorerUrl(hash)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 rounded border border-accent/30 bg-accent/5 px-1 py-px text-accent hover:bg-accent/10"
+          title="View on explorer"
+        >
+          {highlightMatch(hash, `tx${key}`)}
+          <ExternalLink className="h-2.5 w-2.5" />
+        </a>,
+      );
+      last = m.index + hash.length;
+    }
+    if (last < text.length) {
+      out.push(
+        <span key={`t-${key++}`}>
+          {highlightMatch(text.slice(last), `t${key}`)}
+        </span>,
+      );
+    }
+    return <>{out}</>;
   }
 
   return (
