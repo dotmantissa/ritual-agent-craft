@@ -324,6 +324,8 @@ function LogsPanel({ run }: { run: Run }) {
   const [copySources, setCopySources] = useState<Set<Source>>(
     () => new Set(ALL_SOURCES),
   );
+  const [hideDisabledCopySources, setHideDisabledCopySources] =
+    useState<boolean>(false);
   const toggleCopySource = (s: Source) => {
     setCopySources((prev) => {
       const next = new Set(prev);
