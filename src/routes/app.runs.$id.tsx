@@ -499,6 +499,26 @@ function LogsPanel({ run }: { run: Run }) {
                       );
                     })}
                   </div>
+                  <div className="inline-flex overflow-hidden rounded-md border border-border bg-background/40">
+                    <button
+                      type="button"
+                      onClick={() => setCopySources(new Set(ALL_SOURCES))}
+                      disabled={copySources.size === ALL_SOURCES.length}
+                      className="px-1.5 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider text-muted-foreground transition hover:text-foreground disabled:opacity-30"
+                      title="Select all sources"
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCopySources(new Set())}
+                      disabled={copySources.size === 0}
+                      className="border-l border-border px-1.5 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider text-muted-foreground transition hover:text-foreground disabled:opacity-30"
+                      title="Clear source selection"
+                    >
+                      None
+                    </button>
+                  </div>
                   <div className="inline-flex overflow-hidden rounded-md border border-accent/30 bg-accent/5 text-accent">
                     <button
                       type="button"
