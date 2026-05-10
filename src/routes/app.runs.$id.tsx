@@ -534,6 +534,15 @@ function LogsPanel({ run }: { run: Run }) {
                     >
                       {hideDisabledCopySources ? "Show off" : "Hide off"}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setHideDisabledCopySources(false)}
+                      disabled={!hideDisabledCopySources}
+                      className="border-l border-border px-1.5 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider text-muted-foreground transition hover:text-foreground disabled:opacity-30"
+                      title="Reset Hide off / Show off to default (Show off)"
+                    >
+                      Reset
+                    </button>
                   </div>
                   <div className="inline-flex overflow-hidden rounded-md border border-accent/30 bg-accent/5 text-accent">
                     <button
