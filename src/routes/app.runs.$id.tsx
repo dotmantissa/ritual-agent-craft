@@ -324,8 +324,27 @@ function LogsPanel({ run }: { run: Run }) {
   const [copySources, setCopySources] = useState<Set<Source>>(
     () => new Set(ALL_SOURCES),
   );
+  const hideOffStorageKey = `runs:logs:hideOff:${run.id}`;
   const [hideDisabledCopySources, setHideDisabledCopySources] =
-    useState<boolean>(false);
+    useState<boolean>(() => {
+      if (typeof window === "undefined") return false;
+      try {
+        return window.localStorage.getItem(hideOffStorageKey) === "1";
+      } catch {
+        return false;
+      }
+    });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        hideOffStorageKey,
+        hideDisabledCopySources ? "1" : "0",
+      );
+    } catch {
+      // ignore storage errors (private mode, quota, etc.)
+    }
+  }, [hideOffStorageKey, hideDisabledCopySources]);
   const toggleCopySource = (s: Source) => {
     setCopySources((prev) => {
       const next = new Set(prev);
