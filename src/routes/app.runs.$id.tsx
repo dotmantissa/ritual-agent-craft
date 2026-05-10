@@ -321,9 +321,33 @@ function LogsPanel({ run }: { run: Run }) {
     () => new Set(ALL_SOURCES),
   );
   const [query, setQuery] = useState("");
-  const [copySources, setCopySources] = useState<Set<Source>>(
-    () => new Set(ALL_SOURCES),
-  );
+  const copySourcesStorageKey = `runs:logs:copySources:${run.id}`;
+  const [copySources, setCopySources] = useState<Set<Source>>(() => {
+    if (typeof window === "undefined") return new Set(ALL_SOURCES);
+    try {
+      const raw = window.localStorage.getItem(copySourcesStorageKey);
+      if (!raw) return new Set(ALL_SOURCES);
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return new Set(ALL_SOURCES);
+      const valid = parsed.filter((v): v is Source =>
+        (ALL_SOURCES as readonly string[]).includes(v as string),
+      );
+      return new Set(valid);
+    } catch {
+      return new Set(ALL_SOURCES);
+    }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        copySourcesStorageKey,
+        JSON.stringify(Array.from(copySources)),
+      );
+    } catch {
+      // ignore storage errors
+    }
+  }, [copySourcesStorageKey, copySources]);
   const hideOffStorageKey = `runs:logs:hideOff:${run.id}`;
   const [hideDisabledCopySources, setHideDisabledCopySources] =
     useState<boolean>(() => {
