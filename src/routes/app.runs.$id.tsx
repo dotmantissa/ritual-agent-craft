@@ -480,6 +480,7 @@ function LogsPanel({ run }: { run: Run }) {
                     {ALL_SOURCES.map((s) => {
                       const c = perSource[s] ?? 0;
                       const on = copySources.has(s);
+                      if (hideDisabledCopySources && !on) return null;
                       return (
                         <button
                           key={s}
@@ -519,6 +520,19 @@ function LogsPanel({ run }: { run: Run }) {
                       title="Clear source selection"
                     >
                       None
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHideDisabledCopySources((v) => !v)}
+                      className={cn(
+                        "border-l border-border px-1.5 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider transition",
+                        hideDisabledCopySources
+                          ? "bg-accent/10 text-accent"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                      title="Hide unselected source chips (selection is preserved)"
+                    >
+                      {hideDisabledCopySources ? "Show off" : "Hide off"}
                     </button>
                   </div>
                   <div className="inline-flex overflow-hidden rounded-md border border-accent/30 bg-accent/5 text-accent">
