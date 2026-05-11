@@ -357,7 +357,12 @@ function LogsPanel({ run }: { run: Run }) {
       if (!input) return;
       e.preventDefault();
       input.focus();
-      input.select();
+      if (e.shiftKey) {
+        const len = input.value.length;
+        input.setSelectionRange(len, len);
+      } else {
+        input.select();
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
