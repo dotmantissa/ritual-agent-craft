@@ -705,6 +705,15 @@ function LogsPanel({ run }: { run: Run }) {
             <span className="ml-2 font-mono-tabular text-[10px] text-muted-foreground">
               {visible.length}/{logs.length}
             </span>
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="ml-1 rounded-md border border-border px-2 py-0.5 font-mono-tabular text-[10px] uppercase tracking-wider text-muted-foreground transition hover:text-foreground"
+              >
+                Clear
+              </button>
+            )}
           </div>
         </div>
         <div className="relative">
