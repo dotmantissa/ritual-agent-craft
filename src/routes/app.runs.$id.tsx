@@ -701,6 +701,7 @@ function LogsPanel({ run }: { run: Run }) {
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
+            ref={searchInputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -708,6 +709,9 @@ function LogsPanel({ run }: { run: Run }) {
               if (e.key === "Escape" && query) {
                 e.preventDefault();
                 setQuery("");
+              } else if (e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.blur();
               }
             }}
             placeholder="Search logs · tx hash, decision, message…"
