@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft,
@@ -337,6 +337,31 @@ function LogsPanel({ run }: { run: Run }) {
       // ignore storage errors
     }
   }, [queryStorageKey, query]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      const input = searchInputRef.current;
+      if (!input) return;
+      e.preventDefault();
+      input.focus();
+      input.select();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
   const copySourcesStorageKey = `runs:logs:copySources:${run.id}`;
   const [copySources, setCopySources] = useState<Set<Source>>(() => {
     if (typeof window === "undefined") return new Set(ALL_SOURCES);
@@ -676,6 +701,7 @@ function LogsPanel({ run }: { run: Run }) {
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
+            ref={searchInputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -683,6 +709,9 @@ function LogsPanel({ run }: { run: Run }) {
               if (e.key === "Escape" && query) {
                 e.preventDefault();
                 setQuery("");
+              } else if (e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.blur();
               }
             }}
             placeholder="Search logs · tx hash, decision, message…"
