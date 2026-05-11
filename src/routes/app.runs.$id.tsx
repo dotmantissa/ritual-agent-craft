@@ -337,6 +337,31 @@ function LogsPanel({ run }: { run: Run }) {
       // ignore storage errors
     }
   }, [queryStorageKey, query]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      const input = searchInputRef.current;
+      if (!input) return;
+      e.preventDefault();
+      input.focus();
+      input.select();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
   const copySourcesStorageKey = `runs:logs:copySources:${run.id}`;
   const [copySources, setCopySources] = useState<Set<Source>>(() => {
     if (typeof window === "undefined") return new Set(ALL_SOURCES);
