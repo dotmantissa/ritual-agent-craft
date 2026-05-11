@@ -340,19 +340,23 @@ function LogsPanel({ run }: { run: Run }) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== "Enter") return;
+     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const tag = target.tagName;
-      if (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
+      const tag = target?.tagName;
+      const isEditable =
+        !!target &&
+        (tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT" ||
+          target.isContentEditable);
+
+      const isFindShortcut =
+        (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f";
+      const isSlash = e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && !isEditable;
+      const isEnter = e.key === "Enter" && !isEditable;
+
+      if (!isFindShortcut && !isSlash && !isEnter) return;
+
       const input = searchInputRef.current;
       if (!input) return;
       e.preventDefault();
