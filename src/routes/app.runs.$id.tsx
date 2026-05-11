@@ -679,6 +679,12 @@ function LogsPanel({ run }: { run: Run }) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && query) {
+                e.preventDefault();
+                setQuery("");
+              }
+            }}
             placeholder="Search logs · tx hash, decision, message…"
             className="w-full rounded-md border border-border bg-background/40 py-1.5 pl-8 pr-8 font-mono-tabular text-[11px] text-foreground placeholder:text-muted-foreground focus:border-accent/50 focus:outline-none"
           />
