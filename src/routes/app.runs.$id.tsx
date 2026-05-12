@@ -378,7 +378,7 @@ function LogsPanel({ run }: { run: Run }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [query]);
   const copySourcesStorageKey = `runs:logs:copySources:${run.id}`;
   const [copySources, setCopySources] = useState<Set<Source>>(() => {
     if (typeof window === "undefined") return new Set(ALL_SOURCES);
