@@ -331,7 +331,7 @@ function LogsPanel({ run }: { run: Run }) {
       navigate({
         to: "/app/runs/$id",
         params: { id: run.id },
-        search: (prev) => ({ ...prev, q: next || undefined }),
+        search: (prev: { q?: string }) => ({ ...prev, q: next || undefined }),
         replace: true,
       });
     },
