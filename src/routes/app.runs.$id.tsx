@@ -354,8 +354,16 @@ function LogsPanel({ run }: { run: Run }) {
         (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f";
       const isSlash = e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && !isEditable;
       const isEnter = e.key === "Enter" && !isEditable;
+      const isEscape =
+        e.key === "Escape" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && query;
 
-      if (!isFindShortcut && !isSlash && !isEnter) return;
+      if (!isFindShortcut && !isSlash && !isEnter && !isEscape) return;
+
+      if (isEscape) {
+        e.preventDefault();
+        setQuery("");
+        return;
+      }
 
       const input = searchInputRef.current;
       if (!input) return;
