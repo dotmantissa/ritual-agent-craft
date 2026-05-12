@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft,
@@ -28,6 +28,9 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/runs/$id")({
   head: () => ({ meta: [{ title: "Run — Ritual Agents" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : "",
+  }),
   component: RunDetail,
 });
 
@@ -320,23 +323,20 @@ function LogsPanel({ run }: { run: Run }) {
   const [active, setActive] = useState<Set<Source>>(
     () => new Set(ALL_SOURCES),
   );
-  const queryStorageKey = `runs:logs:query:${run.id}`;
-  const [query, setQuery] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      return window.localStorage.getItem(queryStorageKey) ?? "";
-    } catch {
-      return "";
-    }
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(queryStorageKey, query);
-    } catch {
-      // ignore storage errors
-    }
-  }, [queryStorageKey, query]);
+  const { q: urlQuery } = Route.useSearch();
+  const navigate = useNavigate();
+  const query = urlQuery;
+  const setQuery = useCallback(
+    (next: string) => {
+      navigate({
+        to: "/app/runs/$id",
+        params: { id: run.id },
+        search: (prev: { q?: string }) => ({ ...prev, q: next || undefined }),
+        replace: true,
+      });
+    },
+    [navigate, run.id],
+  );
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
