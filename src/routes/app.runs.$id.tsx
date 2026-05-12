@@ -323,23 +323,20 @@ function LogsPanel({ run }: { run: Run }) {
   const [active, setActive] = useState<Set<Source>>(
     () => new Set(ALL_SOURCES),
   );
-  const queryStorageKey = `runs:logs:query:${run.id}`;
-  const [query, setQuery] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      return window.localStorage.getItem(queryStorageKey) ?? "";
-    } catch {
-      return "";
-    }
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(queryStorageKey, query);
-    } catch {
-      // ignore storage errors
-    }
-  }, [queryStorageKey, query]);
+  const { q: urlQuery } = Route.useSearch();
+  const navigate = useNavigate();
+  const query = urlQuery;
+  const setQuery = useCallback(
+    (next: string) => {
+      navigate({
+        to: "/app/runs/$id",
+        params: { id: run.id },
+        search: (prev) => ({ ...prev, q: next || undefined }),
+        replace: true,
+      });
+    },
+    [navigate, run.id],
+  );
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
