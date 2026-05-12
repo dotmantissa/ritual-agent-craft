@@ -28,6 +28,9 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/runs/$id")({
   head: () => ({ meta: [{ title: "Run — Ritual Agents" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : "",
+  }),
   component: RunDetail,
 });
 
