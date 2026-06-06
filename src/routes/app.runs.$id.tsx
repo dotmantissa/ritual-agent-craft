@@ -769,7 +769,7 @@ function LogsPanel({ run }: { run: Run }) {
       </div>
       {visible.length === 0 ? (
         <div className="px-5 py-8 text-center font-mono-tabular text-[11px] text-muted-foreground">
-          {q ? `No steps match "${query}".` : "No steps match the selected filters."}
+          {q ? `No steps match "${draftQuery}".` : "No steps match the selected filters."}
         </div>
       ) : (
       <ol className="relative">
