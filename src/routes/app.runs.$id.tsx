@@ -462,7 +462,7 @@ function LogsPanel({ run }: { run: Run }) {
     });
   };
 
-  const q = query.trim().toLowerCase();
+  const q = draftQuery.trim().toLowerCase();
   const visible = logs.filter((l) => {
     if (!active.has(l.source as Source)) return false;
     if (!q) return true;
