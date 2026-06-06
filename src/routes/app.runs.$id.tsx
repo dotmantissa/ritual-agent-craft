@@ -725,7 +725,7 @@ function LogsPanel({ run }: { run: Run }) {
             <span className="ml-2 font-mono-tabular text-[10px] text-muted-foreground">
               {visible.length}/{logs.length}
             </span>
-            {query && (
+            {draftQuery && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
