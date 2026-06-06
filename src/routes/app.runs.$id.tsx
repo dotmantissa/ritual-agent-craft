@@ -337,6 +337,18 @@ function LogsPanel({ run }: { run: Run }) {
     },
     [navigate, run.id],
   );
+  const [draftQuery, setDraftQuery] = useState(query);
+  useEffect(() => {
+    setDraftQuery(query);
+  }, [query]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (draftQuery !== query) {
+        setQuery(draftQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [draftQuery, query, setQuery]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -355,7 +367,7 @@ function LogsPanel({ run }: { run: Run }) {
       const isSlash = e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && !isEditable;
       const isEnter = e.key === "Enter" && !isEditable;
       const isEscape =
-        e.key === "Escape" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && query;
+        e.key === "Escape" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && draftQuery;
 
       if (!isFindShortcut && !isSlash && !isEnter && !isEscape) return;
 
@@ -378,7 +390,7 @@ function LogsPanel({ run }: { run: Run }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [query]);
+  }, [draftQuery, setQuery]);
   const copySourcesStorageKey = `runs:logs:copySources:${run.id}`;
   const [copySources, setCopySources] = useState<Set<Source>>(() => {
     if (typeof window === "undefined") return new Set(ALL_SOURCES);
@@ -450,7 +462,7 @@ function LogsPanel({ run }: { run: Run }) {
     });
   };
 
-  const q = query.trim().toLowerCase();
+  const q = draftQuery.trim().toLowerCase();
   const visible = logs.filter((l) => {
     if (!active.has(l.source as Source)) return false;
     if (!q) return true;
@@ -713,7 +725,7 @@ function LogsPanel({ run }: { run: Run }) {
             <span className="ml-2 font-mono-tabular text-[10px] text-muted-foreground">
               {visible.length}/{logs.length}
             </span>
-            {query && (
+            {draftQuery && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
@@ -729,10 +741,10 @@ function LogsPanel({ run }: { run: Run }) {
           <input
             ref={searchInputRef}
             type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={draftQuery}
+            onChange={(e) => setDraftQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Escape" && query) {
+              if (e.key === "Escape" && draftQuery) {
                 e.preventDefault();
                 setQuery("");
               } else if (e.key === "Enter") {
@@ -743,7 +755,7 @@ function LogsPanel({ run }: { run: Run }) {
             placeholder="Search logs · tx hash, decision, message…"
             className="w-full rounded-md border border-border bg-background/40 py-1.5 pl-8 pr-8 font-mono-tabular text-[11px] text-foreground placeholder:text-muted-foreground focus:border-accent/50 focus:outline-none"
           />
-          {query && (
+          {draftQuery && (
             <button
               type="button"
               onClick={() => setQuery("")}
@@ -757,7 +769,7 @@ function LogsPanel({ run }: { run: Run }) {
       </div>
       {visible.length === 0 ? (
         <div className="px-5 py-8 text-center font-mono-tabular text-[11px] text-muted-foreground">
-          {q ? `No steps match "${query}".` : "No steps match the selected filters."}
+          {q ? `No steps match "${draftQuery}".` : "No steps match the selected filters."}
         </div>
       ) : (
       <ol className="relative">
