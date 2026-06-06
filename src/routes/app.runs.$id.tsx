@@ -741,10 +741,10 @@ function LogsPanel({ run }: { run: Run }) {
           <input
             ref={searchInputRef}
             type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={draftQuery}
+            onChange={(e) => setDraftQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Escape" && query) {
+              if (e.key === "Escape" && draftQuery) {
                 e.preventDefault();
                 setQuery("");
               } else if (e.key === "Enter") {
