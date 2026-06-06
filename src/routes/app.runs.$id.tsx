@@ -337,6 +337,18 @@ function LogsPanel({ run }: { run: Run }) {
     },
     [navigate, run.id],
   );
+  const [draftQuery, setDraftQuery] = useState(query);
+  useEffect(() => {
+    setDraftQuery(query);
+  }, [query]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (draftQuery !== query) {
+        setQuery(draftQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [draftQuery, query, setQuery]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
