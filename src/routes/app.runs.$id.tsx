@@ -367,7 +367,7 @@ function LogsPanel({ run }: { run: Run }) {
       const isSlash = e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && !isEditable;
       const isEnter = e.key === "Enter" && !isEditable;
       const isEscape =
-        e.key === "Escape" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && query;
+        e.key === "Escape" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && draftQuery;
 
       if (!isFindShortcut && !isSlash && !isEnter && !isEscape) return;
 
@@ -390,7 +390,7 @@ function LogsPanel({ run }: { run: Run }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [query]);
+  }, [draftQuery, setQuery]);
   const copySourcesStorageKey = `runs:logs:copySources:${run.id}`;
   const [copySources, setCopySources] = useState<Set<Source>>(() => {
     if (typeof window === "undefined") return new Set(ALL_SOURCES);
