@@ -3,7 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { toggleAgent, deleteAgent } from "@/server/agents.functions";
+import { toggleAgent, deleteAgent } from "@/fns/agents";
 import { toast } from "sonner";
 import {
   ArrowLeft,

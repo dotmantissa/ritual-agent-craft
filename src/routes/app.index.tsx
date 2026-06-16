@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { tickAgents, toggleAgent, deleteAgent } from "@/server/agents.functions";
+import { tickAgents, toggleAgent, deleteAgent } from "@/fns/agents";
 import { Plus, Play, Pause, Trash2, Activity, ArrowRight, Sparkles, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -81,6 +81,7 @@ function Dashboard() {
         if (r.data) setRuns(r.data as Run[]);
       } catch (e) {
         console.error("tick failed", e);
+        toast.error("Agent tick failed — " + (e instanceof Error ? e.message : "unknown error"));
       }
     }, 4000);
     return () => clearInterval(interval);

@@ -1,10 +1,10 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { forkTemplate } from "@/server/agents.functions";
+import { forkTemplate } from "@/fns/agents";
 import { toast } from "sonner";
-import { GitFork, Sparkles } from "lucide-react";
+import { GitFork, Plus, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/app/marketplace")({
   head: () => ({
@@ -68,7 +68,27 @@ function Marketplace() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {templates.map((t) => (
+        {templates.length === 0 ? (
+          <div className="col-span-full glass rounded-2xl p-12 text-center">
+            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-primary neon-glow">
+              <Sparkles className="h-7 w-7 text-primary-foreground" />
+            </div>
+            <h2 className="text-xl font-semibold">No templates yet</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Templates are being loaded. If this persists, the migration may need to be applied to your Supabase project.
+            </p>
+            <Button
+              asChild
+              className="mt-6 bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90"
+            >
+              <Link to="/app/builder">
+                <Plus className="mr-2 h-4 w-4" />
+                Build your own
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          templates.map((t) => (
           <div key={t.id} className="glass group flex flex-col rounded-2xl p-6 transition-all hover:-translate-y-0.5 hover:neon-glow">
             <div className="mb-3 flex items-center justify-between">
               <span className="rounded-full border border-border bg-card/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -97,7 +117,8 @@ function Marketplace() {
               {busy === t.id ? "Forking…" : "Fork agent"}
             </Button>
           </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

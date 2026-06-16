@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppMarketplaceRouteImport } from './routes/app.marketplace'
 import { Route as AppBuilderRouteImport } from './routes/app.builder'
 import { Route as AppRunsIdRouteImport } from './routes/app.runs.$id'
@@ -30,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMarketplaceRoute = AppMarketplaceRouteImport.update({
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/app/builder': typeof AppBuilderRoute
   '/app/marketplace': typeof AppMarketplaceRoute
+  '/app/settings': typeof AppSettingsRoute
   '/app/': typeof AppIndexRoute
   '/app/agents/$id': typeof AppAgentsIdRoute
   '/app/runs/$id': typeof AppRunsIdRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app/builder': typeof AppBuilderRoute
   '/app/marketplace': typeof AppMarketplaceRoute
+  '/app/settings': typeof AppSettingsRoute
   '/app': typeof AppIndexRoute
   '/app/agents/$id': typeof AppAgentsIdRoute
   '/app/runs/$id': typeof AppRunsIdRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/app/builder': typeof AppBuilderRoute
   '/app/marketplace': typeof AppMarketplaceRoute
+  '/app/settings': typeof AppSettingsRoute
   '/app/': typeof AppIndexRoute
   '/app/agents/$id': typeof AppAgentsIdRoute
   '/app/runs/$id': typeof AppRunsIdRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/builder'
     | '/app/marketplace'
+    | '/app/settings'
     | '/app/'
     | '/app/agents/$id'
     | '/app/runs/$id'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app/builder'
     | '/app/marketplace'
+    | '/app/settings'
     | '/app'
     | '/app/agents/$id'
     | '/app/runs/$id'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/builder'
     | '/app/marketplace'
+    | '/app/settings'
     | '/app/'
     | '/app/agents/$id'
     | '/app/runs/$id'
@@ -135,6 +147,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/marketplace': {
@@ -171,6 +190,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppBuilderRoute: typeof AppBuilderRoute
   AppMarketplaceRoute: typeof AppMarketplaceRoute
+  AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAgentsIdRoute: typeof AppAgentsIdRoute
   AppRunsIdRoute: typeof AppRunsIdRoute
@@ -179,6 +199,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppBuilderRoute: AppBuilderRoute,
   AppMarketplaceRoute: AppMarketplaceRoute,
+  AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
   AppAgentsIdRoute: AppAgentsIdRoute,
   AppRunsIdRoute: AppRunsIdRoute,

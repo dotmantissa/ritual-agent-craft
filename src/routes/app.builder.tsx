@@ -13,9 +13,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { saveAgent } from "@/server/agents.functions";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { saveAgent, testRunAgent } from "@/fns/agents";
 import { toast } from "sonner";
-import { ArrowRight, Brain, Code2, Save, Zap } from "lucide-react";
+import { ArrowRight, Brain, CheckCircle2, CircleSlash, Code2, FlaskConical, Save, XCircle, Zap } from "lucide-react";
 
 export const Route = createFileRoute("/app/builder")({
   validateSearch: (s: Record<string, unknown>) => ({ id: s.id as string | undefined }),
@@ -55,6 +61,13 @@ function Builder() {
   const [advanced, setAdvanced] = useState(false);
   const [advancedJson, setAdvancedJson] = useState("");
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    event: Record<string, unknown>;
+    decision: { act: boolean; reason: string };
+    wouldExecute: boolean;
+    mockResult: Record<string, unknown> | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -79,6 +92,22 @@ function Builder() {
       setAdvancedJson(JSON.stringify({ trigger, ai_prompt: aiPrompt, action }, null, 2));
     }
   }, [advanced]);
+
+  const onTest = async () => {
+    if (!id) {
+      toast.error("Save the agent first before running a test");
+      return;
+    }
+    setTesting(true);
+    try {
+      const result = await testRunAgent({ data: { id } });
+      setTestResult(result as typeof testResult);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Test run failed");
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const onSave = async () => {
     if (!name.trim()) {
@@ -131,6 +160,17 @@ function Builder() {
             Dev mode
             <Switch checked={advanced} onCheckedChange={setAdvanced} />
           </div>
+          {id && (
+            <Button
+              variant="outline"
+              onClick={onTest}
+              disabled={testing}
+              className="border-border bg-card/40"
+            >
+              <FlaskConical className="mr-2 h-4 w-4" />
+              {testing ? "Testing…" : "Test Run"}
+            </Button>
+          )}
           <Button onClick={onSave} disabled={saving} className="bg-gradient-primary text-primary-foreground neon-glow hover:opacity-90">
             <Save className="mr-2 h-4 w-4" />
             {saving ? "Deploying…" : "Deploy"}
@@ -177,6 +217,11 @@ function Builder() {
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-stretch">
+          {/* Mobile: numbered steps; Desktop: arrow flow */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground lg:hidden">
+            <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/20 text-primary font-mono-tabular text-[10px]">1</span>
+            Trigger → AI → Action
+          </div>
           {/* Trigger */}
           <Card title="Trigger" subtitle="When this happens" icon={Zap} accent="violet">
             <Select
@@ -228,6 +273,60 @@ function Builder() {
           </Card>
         </div>
       )}
+
+      {/* Test Run Result Dialog */}
+      <Dialog open={!!testResult} onOpenChange={(open) => !open && setTestResult(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FlaskConical className="h-4 w-4 text-accent" />
+              Test Run Result
+            </DialogTitle>
+          </DialogHeader>
+          {testResult && (
+            <div className="space-y-4 text-sm">
+              <div className="flex items-center gap-2">
+                {testResult.wouldExecute ? (
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                ) : (
+                  <CircleSlash className="h-5 w-5 text-warning" />
+                )}
+                <span className="font-semibold">
+                  AI decision:{" "}
+                  <span className={testResult.wouldExecute ? "text-success" : "text-warning"}>
+                    {testResult.wouldExecute ? "ACT" : "SKIP"}
+                  </span>
+                </span>
+              </div>
+              <p className="text-muted-foreground">{testResult.decision.reason}</p>
+              <details className="rounded-xl border border-border bg-background/40">
+                <summary className="cursor-pointer select-none px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground">
+                  Sample event
+                </summary>
+                <pre className="max-h-48 overflow-auto px-4 pb-4 font-mono-tabular text-[11px] text-foreground/80">
+                  {JSON.stringify(testResult.event, null, 2)}
+                </pre>
+              </details>
+              {testResult.mockResult && (
+                <details className="rounded-xl border border-border bg-background/40">
+                  <summary className="cursor-pointer select-none px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground">
+                    Mock action result
+                  </summary>
+                  <pre className="max-h-48 overflow-auto px-4 pb-4 font-mono-tabular text-[11px] text-foreground/80">
+                    {JSON.stringify(testResult.mockResult, null, 2)}
+                  </pre>
+                </details>
+              )}
+              {!testResult.wouldExecute && (
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <XCircle className="h-3.5 w-3.5 text-destructive" />
+                  No transaction would be submitted for this event.
+                </p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

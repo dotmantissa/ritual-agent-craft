@@ -3,7 +3,7 @@ import { useSession } from "@/hooks/use-session";
 import { connectWallet, disconnectWallet } from "@/lib/auth";
 import { shortAddress } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
-import { Sparkles, LogOut, Wallet } from "lucide-react";
+import { Sparkles, LogOut, Wallet, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -61,6 +61,9 @@ export function Header() {
                   {shortAddress(wallet)}
                 </span>
               </div>
+              <Button variant="ghost" size="icon" asChild aria-label="Settings">
+                <Link to="/app/settings"><Settings className="h-4 w-4" /></Link>
+              </Button>
               <Button variant="ghost" size="icon" onClick={onDisconnect} aria-label="Disconnect">
                 <LogOut className="h-4 w-4" />
               </Button>

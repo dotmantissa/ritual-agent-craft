@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { generateEvent, executeAction } from "./chain/mockChain.server";
+import { generateEvent, executeAction } from "../server/chain/mockChain.server";
 
 const TriggerSchema = z.object({
   type: z.enum(["wallet_activity", "contract_event", "price_threshold", "scheduled"]),
@@ -149,10 +149,15 @@ export const tickAgents = createServerFn({ method: "POST" })
       if (matching.length === 0) continue;
       const agent = matching[Math.floor(Math.random() * matching.length)];
 
-      // AI decision
+      // AI decision — check rate limit before calling AI
       let decision: { act: boolean; reason: string } = { act: true, reason: "No AI prompt configured." };
       if (agent.ai_prompt && agent.ai_prompt.trim().length > 0) {
-        decision = await aiDecide(agent.ai_prompt, event);
+        const withinLimit = await checkAiRateLimit(supabase, userId);
+        if (!withinLimit) {
+          decision = { act: false, reason: `AI rate limit reached (${AI_CALLS_PER_HOUR_LIMIT} calls/hour). Skipping to protect costs.` };
+        } else {
+          decision = await aiDecide(agent.ai_prompt, event);
+        }
       }
 
       if (!decision.act) {
@@ -183,6 +188,19 @@ export const tickAgents = createServerFn({ method: "POST" })
 
     return { runs: runCount };
   });
+
+const AI_CALLS_PER_HOUR_LIMIT = 50;
+
+async function checkAiRateLimit(supabase: ReturnType<typeof import("@supabase/supabase-js").createClient>, userId: string): Promise<boolean> {
+  const since = new Date(Date.now() - 3600_000).toISOString();
+  const { count } = await supabase
+    .from("agent_runs")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_id", userId)
+    .neq("status", "skipped")
+    .gte("created_at", since);
+  return (count ?? 0) < AI_CALLS_PER_HOUR_LIMIT;
+}
 
 async function aiDecide(
   prompt: string,
@@ -248,3 +266,50 @@ async function aiDecide(
     return { act: true, reason: "AI request failed; defaulting to act." };
   }
 }
+
+// Test Run: feed a sample event through AI decision and return reasoning without persisting.
+export const testRunAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: agent, error } = await supabase
+      .from("agents")
+      .select("id,name,ai_prompt,trigger,action")
+      .eq("id", data.id)
+      .eq("owner_id", userId)
+      .single();
+    if (error || !agent) throw new Error("Agent not found");
+
+    const event = generateEvent();
+    // Force event type to match the agent's trigger so the test is meaningful
+    const trig = (agent.trigger ?? {}) as { type?: string };
+    if (trig.type) {
+      (event as { type: string }).type = trig.type as typeof event.type;
+    }
+
+    let decision: { act: boolean; reason: string } = { act: true, reason: "No AI prompt — agent would always execute." };
+    const prompt = (agent.ai_prompt as string | null) ?? "";
+    if (prompt.trim().length > 0) {
+      const withinLimit = await checkAiRateLimit(supabase, userId);
+      if (!withinLimit) {
+        decision = { act: false, reason: `AI rate limit reached (${AI_CALLS_PER_HOUR_LIMIT} calls/hour).` };
+      } else {
+        decision = await aiDecide(prompt, event);
+      }
+    }
+
+    const wouldExecute = decision.act;
+    const mockResult = wouldExecute
+      ? executeAction(agent.action as { type: string; params?: Record<string, unknown> })
+      : null;
+
+    return {
+      event: JSON.parse(JSON.stringify(event)),
+      decision,
+      wouldExecute,
+      mockResult,
+    };
+  });
