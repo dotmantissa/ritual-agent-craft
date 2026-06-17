@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 const TX_HASH_RE = /0x[a-fA-F0-9]{16,}/g;
-const explorerUrl = (hash: string) => `https://mockscan.ritual.dev/tx/${hash}`;
+const explorerUrl = (hash: string) => `https://explorer.ritualfoundation.org/tx/${hash}`;
 import { getRun, getAgentMeta } from "@/fns/agents";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -261,7 +261,7 @@ function buildLogs(run: Run): LogEntry[] {
       level: "info",
       source: "chain",
       icon: Send,
-      message: "Submitting transaction to mock chain",
+      message: "Submitting transaction to Ritual Testnet",
     });
     const txHash = run.tx_hash;
     const result = (run.action_result ?? {}) as {

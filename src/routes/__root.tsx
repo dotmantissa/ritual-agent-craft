@@ -4,9 +4,23 @@ import { PrivyProvider } from "@privy-io/react-auth";
 import { usePrivy } from "@privy-io/react-auth";
 import { useEffect } from "react";
 import { setPrivyToken } from "@/lib/privy-token";
+import { defineChain } from "viem";
 import appCss from "../styles.css?url";
 
-const PRIVY_APP_ID = "cmqhlqq1i00d70cjj9yqbva1w";
+const PRIVY_APP_ID = import.meta.env.VITE_PRIVY_APP_ID as string;
+
+export const ritualTestnet = defineChain({
+  id: 1979,
+  name: "Ritual Testnet",
+  nativeCurrency: { name: "Ritual", symbol: "RITUAL", decimals: 18 },
+  rpcUrls: {
+    default: { http: ["https://rpc.ritualfoundation.org"] },
+  },
+  blockExplorers: {
+    default: { name: "Ritual Explorer", url: "https://explorer.ritualfoundation.org" },
+  },
+  testnet: true,
+});
 
 function PrivyTokenSync() {
   const { ready, authenticated, getAccessToken } = usePrivy();
@@ -41,10 +55,10 @@ function NotFoundComponent() {
           That route doesn't exist on the Ritual network.
         </p>
         <Link
-          to="/"
+          to="/app"
           className="mt-6 inline-flex items-center justify-center rounded-md bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground neon-glow"
         >
-          Return home
+          Back to dashboard
         </Link>
       </div>
     </div>
@@ -76,6 +90,8 @@ function RootComponent() {
       appId={PRIVY_APP_ID}
       config={{
         loginMethods: ["wallet"],
+        defaultChain: ritualTestnet,
+        supportedChains: [ritualTestnet],
         appearance: {
           theme: "dark",
           accentColor: "#7c3aed",

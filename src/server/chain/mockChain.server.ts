@@ -67,7 +67,7 @@ export function executeAction(action: { type: string; params?: Record<string, un
   return {
     success,
     tx_hash: success ? fakeTxHash() : null,
-    chain: "ritual-testnet-mock",
+    chain: "ritual-testnet",
     action_type: action.type,
     params: action.params ?? {},
     gas_used: Math.floor(Math.random() * 200_000) + 21_000,
