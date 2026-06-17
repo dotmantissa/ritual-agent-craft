@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft,
   Brain,
@@ -23,6 +22,7 @@ import {
 
 const TX_HASH_RE = /0x[a-fA-F0-9]{16,}/g;
 const explorerUrl = (hash: string) => `https://mockscan.ritual.dev/tx/${hash}`;
+import { getRun, getAgentMeta } from "@/fns/agents";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -56,22 +56,15 @@ function RunDetail() {
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
-        .from("agent_runs")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
-      if (error || !data) {
+      const data = await getRun({ data: { id } }).catch(() => null);
+      if (!data) {
         setNotFound(true);
         return;
       }
-      setRun(data as unknown as Run);
-      const { data: a } = await supabase
-        .from("agents")
-        .select("id,name")
-        .eq("id", (data as { agent_id: string }).agent_id)
-        .maybeSingle();
-      if (a) setAgent(a as Agent);
+      const run = data as unknown as Run;
+      setRun(run);
+      const a = await getAgentMeta({ data: { id: run.agent_id } }).catch(() => null);
+      if (a) setAgent(a);
     })();
   }, [id]);
 
@@ -331,7 +324,7 @@ function LogsPanel({ run }: { run: Run }) {
       navigate({
         to: "/app/runs/$id",
         params: { id: run.id },
-        search: (prev: { q?: string }) => ({ ...prev, q: next || undefined }),
+        search: (prev: { q?: string }) => ({ ...prev, q: next || "" }),
         replace: true,
       });
     },

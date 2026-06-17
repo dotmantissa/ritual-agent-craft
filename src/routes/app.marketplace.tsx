@@ -1,8 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { forkTemplate } from "@/fns/agents";
+import { forkTemplate, listTemplates } from "@/fns/agents";
 import { toast } from "sonner";
 import { GitFork, Plus, Sparkles } from "lucide-react";
 
@@ -17,13 +16,8 @@ export const Route = createFileRoute("/app/marketplace")({
 });
 
 type Template = {
-  id: string;
-  name: string;
-  description: string | null;
-  category: string | null;
-  trigger: { type: string };
-  action: { type: string };
-  ai_prompt: string | null;
+  id: string; name: string; description: string | null; category: string | null;
+  trigger: { type: string }; action: { type: string }; ai_prompt: string | null;
 };
 
 function Marketplace() {
@@ -32,14 +26,9 @@ function Marketplace() {
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase
-      .from("agents")
-      .select("id,name,description,category,trigger,action,ai_prompt")
-      .eq("is_template", true)
-      .order("created_at")
-      .then(({ data }) => {
-        if (data) setTemplates(data as unknown as Template[]);
-      });
+    listTemplates().then((rows) => {
+      if (rows) setTemplates(rows as unknown as Template[]);
+    }).catch(console.error);
   }, []);
 
   const fork = async (id: string) => {
@@ -75,48 +64,40 @@ function Marketplace() {
             </div>
             <h2 className="text-xl font-semibold">No templates yet</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Templates are being loaded. If this persists, the migration may need to be applied to your Supabase project.
+              Apply the Neon schema to seed template agents.
             </p>
-            <Button
-              asChild
-              className="mt-6 bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90"
-            >
-              <Link to="/app/builder">
-                <Plus className="mr-2 h-4 w-4" />
-                Build your own
-              </Link>
+            <Button asChild className="mt-6 bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90">
+              <Link to="/app/builder" search={{ id: undefined }}><Plus className="mr-2 h-4 w-4" />Build your own</Link>
             </Button>
           </div>
         ) : (
           templates.map((t) => (
-          <div key={t.id} className="glass group flex flex-col rounded-2xl p-6 transition-all hover:-translate-y-0.5 hover:neon-glow">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="rounded-full border border-border bg-card/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                {t.category ?? "general"}
-              </span>
-              <span className="font-mono-tabular text-[10px] text-muted-foreground">
-                {t.trigger.type} → {t.action.type}
-              </span>
-            </div>
-            <h3 className="text-lg font-semibold">{t.name}</h3>
-            <p className="mt-2 text-sm text-muted-foreground">{t.description}</p>
-            {t.ai_prompt && (
-              <div className="mt-4 rounded-lg border border-border bg-card/30 p-3">
-                <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                  AI policy
-                </div>
-                <p className="line-clamp-3 text-xs text-foreground/80">{t.ai_prompt}</p>
+            <div key={t.id} className="glass group flex flex-col rounded-2xl p-6 transition-all hover:-translate-y-0.5 hover:neon-glow">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="rounded-full border border-border bg-card/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {t.category ?? "general"}
+                </span>
+                <span className="font-mono-tabular text-[10px] text-muted-foreground">
+                  {t.trigger.type} → {t.action.type}
+                </span>
               </div>
-            )}
-            <Button
-              onClick={() => fork(t.id)}
-              disabled={busy === t.id}
-              className="mt-5 bg-gradient-primary text-primary-foreground hover:opacity-90"
-            >
-              <GitFork className="mr-2 h-4 w-4" />
-              {busy === t.id ? "Forking…" : "Fork agent"}
-            </Button>
-          </div>
+              <h3 className="text-lg font-semibold">{t.name}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{t.description}</p>
+              {t.ai_prompt && (
+                <div className="mt-4 rounded-lg border border-border bg-card/30 p-3">
+                  <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">AI policy</div>
+                  <p className="line-clamp-3 text-xs text-foreground/80">{t.ai_prompt}</p>
+                </div>
+              )}
+              <Button
+                onClick={() => fork(t.id)}
+                disabled={busy === t.id}
+                className="mt-5 bg-gradient-primary text-primary-foreground hover:opacity-90"
+              >
+                <GitFork className="mr-2 h-4 w-4" />
+                {busy === t.id ? "Forking…" : "Fork agent"}
+              </Button>
+            </div>
           ))
         )}
       </div>

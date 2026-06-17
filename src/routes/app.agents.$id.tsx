@@ -1,9 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { toggleAgent, deleteAgent } from "@/fns/agents";
+import { getAgent, getAgentRuns, toggleAgent, deleteAgent } from "@/fns/agents";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -55,34 +54,24 @@ function AgentDetail() {
 
   const load = async () => {
     const [a, r] = await Promise.all([
-      supabase.from("agents").select("*").eq("id", id).single(),
-      supabase
-        .from("agent_runs")
-        .select("*")
-        .eq("agent_id", id)
-        .order("created_at", { ascending: false })
-        .limit(50),
+      getAgent({ data: { id } }),
+      getAgentRuns({ data: { agentId: id } }),
     ]);
-    if (a.data) setAgent(a.data as unknown as Agent);
-    if (r.data) setRuns(r.data as unknown as Run[]);
+    if (a) setAgent(a as unknown as Agent);
+    if (r) setRuns(r as unknown as Run[]);
   };
 
   useEffect(() => {
     load();
-    // realtime
-    const channel = supabase
-      .channel(`agent-${id}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "agent_runs", filter: `agent_id=eq.${id}` },
-        (payload) => {
-          setRuns((prev) => [payload.new as unknown as Run, ...prev].slice(0, 50));
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    const interval = setInterval(async () => {
+      try {
+        const r = await getAgentRuns({ data: { agentId: id } });
+        if (r) setRuns(r as unknown as Run[]);
+      } catch (e) {
+        console.error("poll failed", e);
+      }
+    }, 4000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -174,6 +163,7 @@ function AgentDetail() {
                 <Link
                   to="/app/runs/$id"
                   params={{ id: run.id }}
+                  search={{ q: "" }}
                   className="block px-5 py-4 transition-colors hover:bg-card/40"
                 >
                   <div className="flex items-center gap-3">

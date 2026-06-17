@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { useSession } from "@/hooks/use-session";
-import { supabase } from "@/integrations/supabase/client";
+import { usePrivy } from "@privy-io/react-auth";
+import { updateProfile } from "@/fns/users";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,17 +20,14 @@ export const Route = createFileRoute("/app/settings")({
 });
 
 function Settings() {
-  const { user } = useSession();
-  const wallet = (user?.user_metadata?.wallet_address as string | undefined) ?? null;
-  const [displayName, setDisplayName] = useState(
-    (user?.user_metadata?.display_name as string | undefined) ?? "",
-  );
+  const { user } = usePrivy();
+  const wallet = user?.wallet?.address ?? null;
+  const [displayName, setDisplayName] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [showKey, setShowKey] = useState(false);
   const apiKeyPlaceholder = "sk-…stored server-side only";
 
-  // Theme toggle: reads from <html> class
   const [dark, setDark] = useState(() =>
     typeof document !== "undefined"
       ? document.documentElement.classList.contains("dark")
@@ -55,14 +52,7 @@ function Settings() {
   const saveProfile = async () => {
     setSavingProfile(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: { display_name: displayName },
-      });
-      if (error) throw error;
-      await supabase
-        .from("profiles")
-        .update({ display_name: displayName })
-        .eq("id", user!.id);
+      await updateProfile({ data: { displayName } });
       toast.success("Profile updated");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Update failed");
@@ -80,7 +70,6 @@ function Settings() {
         </p>
       </div>
 
-      {/* Profile */}
       <Section icon={User} title="Profile">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -117,7 +106,6 @@ function Settings() {
         </Button>
       </Section>
 
-      {/* API Keys */}
       <Section icon={Key} title="API Keys">
         <p className="text-sm text-muted-foreground">
           The AI decision engine uses the{" "}
@@ -150,7 +138,6 @@ function Settings() {
         </div>
       </Section>
 
-      {/* Theme */}
       <Section icon={dark ? Moon : Sun} title="Appearance">
         <div className="flex items-center justify-between">
           <div>

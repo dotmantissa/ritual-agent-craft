@@ -1,8 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { tickAgents, toggleAgent, deleteAgent } from "@/fns/agents";
+import { listMyAgents, listMyRecentRuns, tickAgents, toggleAgent, deleteAgent } from "@/fns/agents";
 import { Plus, Play, Pause, Trash2, Activity, ArrowRight, Sparkles, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -18,21 +17,13 @@ export const Route = createFileRoute("/app/")({
 });
 
 type Agent = {
-  id: string;
-  name: string;
-  description: string | null;
+  id: string; name: string; description: string | null;
   status: "active" | "paused";
   trigger: { type: string; params?: Record<string, unknown> };
   action: { type: string; params?: Record<string, unknown> };
   category: string | null;
 };
-
-type Run = {
-  id: string;
-  agent_id: string;
-  status: "success" | "skipped" | "failed";
-  created_at: string;
-};
+type Run = { id: string; agent_id: string; status: "success" | "skipped" | "failed"; created_at: string };
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -40,45 +31,25 @@ function Dashboard() {
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const [a, r] = await Promise.all([
-      supabase
-        .from("agents")
-        .select("id,name,description,status,trigger,action,category")
-        .eq("is_template", false)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("agent_runs")
-        .select("id,agent_id,status,created_at")
-        .gte("created_at", new Date(Date.now() - 24 * 3600 * 1000).toISOString())
-        .order("created_at", { ascending: false })
-        .limit(500),
+      listMyAgents(),
+      listMyRecentRuns(),
     ]);
-    if (a.data) setAgents(a.data as unknown as Agent[]);
-    if (r.data) setRuns(r.data as Run[]);
+    setAgents((a ?? []) as unknown as Agent[]);
+    setRuns((r ?? []) as unknown as Run[]);
     setLoading(false);
-  };
-
-  useEffect(() => {
-    refresh();
   }, []);
 
-  // Tick loop — only when there are active agents
+  useEffect(() => { refresh(); }, [refresh]);
+
   useEffect(() => {
-    if (agents.length === 0) return;
-    const hasActive = agents.some((a) => a.status === "active");
-    if (!hasActive) return;
+    if (!agents.some((a) => a.status === "active")) return;
     const interval = setInterval(async () => {
       try {
         await tickAgents();
-        // refresh runs only
-        const r = await supabase
-          .from("agent_runs")
-          .select("id,agent_id,status,created_at")
-          .gte("created_at", new Date(Date.now() - 24 * 3600 * 1000).toISOString())
-          .order("created_at", { ascending: false })
-          .limit(500);
-        if (r.data) setRuns(r.data as Run[]);
+        const r = await listMyRecentRuns();
+        setRuns((r ?? []) as unknown as Run[]);
       } catch (e) {
         console.error("tick failed", e);
         toast.error("Agent tick failed — " + (e instanceof Error ? e.message : "unknown error"));
@@ -92,41 +63,25 @@ function Dashboard() {
   const successCount = runs.filter((r) => r.status === "success").length;
   const successRate = totalActions > 0 ? Math.round((successCount / totalActions) * 100) : 0;
 
-  if (loading) {
-    return (
-      <div className="font-mono-tabular text-sm text-muted-foreground">Loading dashboard…</div>
-    );
-  }
+  if (loading) return <div className="font-mono-tabular text-sm text-muted-foreground">Loading dashboard…</div>;
 
   return (
     <div className="space-y-8">
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Mission Control</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Live view of your autonomous agents on Ritual.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Live view of your autonomous agents on Ritual.</p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline" className="border-border bg-card/40">
-            <Link to="/app/marketplace">
-              <Sparkles className="mr-2 h-4 w-4" />
-              Marketplace
-            </Link>
+            <Link to="/app/marketplace"><Sparkles className="mr-2 h-4 w-4" />Marketplace</Link>
           </Button>
-          <Button
-            asChild
-            className="bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90"
-          >
-            <Link to="/app/builder">
-              <Plus className="mr-2 h-4 w-4" />
-              New agent
-            </Link>
+          <Button asChild className="bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90">
+            <Link to="/app/builder" search={{ id: undefined }}><Plus className="mr-2 h-4 w-4" />New agent</Link>
           </Button>
         </div>
       </div>
 
-      {/* KPI Strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Kpi label="Active agents" value={active.toString()} />
         <Kpi label="Actions (24h)" value={totalActions.toString()} />
@@ -134,76 +89,48 @@ function Dashboard() {
         <Kpi label="AI calls (24h)" value={runs.filter((r) => r.status !== "skipped").length.toString()} />
       </div>
 
-      {/* Agents */}
       {agents.length === 0 ? (
         <EmptyState />
       ) : (
         <div className="glass overflow-hidden rounded-2xl">
-          <div className="border-b border-border px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Your agents
-          </div>
+          <div className="border-b border-border px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Your agents</div>
           <ul className="divide-y divide-border">
             {agents.map((agent) => {
               const agentRuns = runs.filter((r) => r.agent_id === agent.id);
               return (
-                <li
-                  key={agent.id}
-                  className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-card/40"
-                >
-                  <div className={cn(
-                    "h-2 w-2 rounded-full",
-                    agent.status === "active" ? "bg-success animate-pulse-slow" : "bg-muted-foreground/40",
-                  )} />
-                  <button
-                    onClick={() => navigate({ to: "/app/agents/$id", params: { id: agent.id } })}
-                    className="flex-1 text-left"
-                  >
+                <li key={agent.id} className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-card/40">
+                  <div className={cn("h-2 w-2 rounded-full", agent.status === "active" ? "bg-success animate-pulse-slow" : "bg-muted-foreground/40")} />
+                  <button onClick={() => navigate({ to: "/app/agents/$id", params: { id: agent.id } })} className="flex-1 text-left">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{agent.name}</span>
                       {agent.category && (
-                        <span className="rounded-full border border-border bg-card/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {agent.category}
-                        </span>
+                        <span className="rounded-full border border-border bg-card/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">{agent.category}</span>
                       )}
                     </div>
                     <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="font-mono-tabular">
-                        {agent.trigger.type} → {agent.action.type}
-                      </span>
+                      <span className="font-mono-tabular">{agent.trigger.type} → {agent.action.type}</span>
                       <span>·</span>
                       <span>{agentRuns.length} actions / 24h</span>
                     </div>
                   </button>
                   <Sparkline runs={agentRuns} />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={async () => {
-                      const next = agent.status === "active" ? "paused" : "active";
-                      await toggleAgent({ data: { id: agent.id, status: next } });
-                      toast.success(next === "active" ? "Agent resumed" : "Agent paused");
-                      refresh();
-                    }}
-                  >
+                  <Button size="icon" variant="ghost" onClick={async () => {
+                    const next = agent.status === "active" ? "paused" : "active";
+                    await toggleAgent({ data: { id: agent.id, status: next } });
+                    toast.success(next === "active" ? "Agent resumed" : "Agent paused");
+                    refresh();
+                  }}>
                     {agent.status === "active" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={async () => {
-                      if (!confirm(`Delete "${agent.name}"?`)) return;
-                      await deleteAgent({ data: { id: agent.id } });
-                      toast.success("Agent deleted");
-                      refresh();
-                    }}
-                  >
+                  <Button size="icon" variant="ghost" onClick={async () => {
+                    if (!confirm(`Delete "${agent.name}"?`)) return;
+                    await deleteAgent({ data: { id: agent.id } });
+                    toast.success("Agent deleted");
+                    refresh();
+                  }}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => navigate({ to: "/app/agents/$id", params: { id: agent.id } })}
-                  >
+                  <Button size="icon" variant="ghost" onClick={() => navigate({ to: "/app/agents/$id", params: { id: agent.id } })}>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </li>
@@ -220,20 +147,12 @@ function Kpi({ label, value, accent }: { label: string; value: string; accent?: 
   return (
     <div className="glass rounded-xl p-4">
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div
-        className={cn(
-          "mt-2 font-mono-tabular text-2xl font-semibold",
-          accent === "success" ? "text-success" : "text-gradient",
-        )}
-      >
-        {value}
-      </div>
+      <div className={cn("mt-2 font-mono-tabular text-2xl font-semibold", accent === "success" ? "text-success" : "text-gradient")}>{value}</div>
     </div>
   );
 }
 
 function Sparkline({ runs }: { runs: Run[] }) {
-  // bucket runs into 12 segments
   const buckets = new Array(12).fill(0) as number[];
   const now = Date.now();
   const window = 24 * 3600 * 1000;
@@ -247,11 +166,7 @@ function Sparkline({ runs }: { runs: Run[] }) {
   return (
     <div className="hidden items-end gap-0.5 sm:flex">
       {buckets.map((v, i) => (
-        <div
-          key={i}
-          className="w-1 rounded-sm bg-gradient-primary opacity-80"
-          style={{ height: `${4 + (v / max) * 22}px` }}
-        />
+        <div key={i} className="w-1 rounded-sm bg-gradient-primary opacity-80" style={{ height: `${4 + (v / max) * 22}px` }} />
       ))}
     </div>
   );
@@ -269,19 +184,10 @@ function EmptyState() {
       </p>
       <div className="mt-6 flex justify-center gap-2">
         <Button asChild variant="outline" className="border-border bg-card/40">
-          <Link to="/app/marketplace">
-            <Sparkles className="mr-2 h-4 w-4" />
-            Browse marketplace
-          </Link>
+          <Link to="/app/marketplace"><Sparkles className="mr-2 h-4 w-4" />Browse marketplace</Link>
         </Button>
-        <Button
-          asChild
-          className="bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90"
-        >
-          <Link to="/app/builder">
-            <Plus className="mr-2 h-4 w-4" />
-            Create agent
-          </Link>
+        <Button asChild className="bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90">
+          <Link to="/app/builder" search={{ id: undefined }}><Plus className="mr-2 h-4 w-4" />Create agent</Link>
         </Button>
       </div>
       <div className="mt-6 inline-flex items-center gap-2 text-xs text-muted-foreground">

@@ -1,25 +1,20 @@
-import { useEffect, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { usePrivy } from '@privy-io/react-auth';
+
+export type AppUser = {
+  id: string;
+  address: string | null;
+  display_name: string;
+};
 
 export function useSession() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // CRITICAL: subscribe before getSession to avoid races
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  return { session, user, loading };
+  const { ready, authenticated, user } = usePrivy();
+  const appUser: AppUser | null =
+    authenticated && user
+      ? {
+          id: user.id,
+          address: user.wallet?.address ?? null,
+          display_name: '',
+        }
+      : null;
+  return { user: appUser, loading: !ready };
 }

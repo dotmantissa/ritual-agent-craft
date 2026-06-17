@@ -1,34 +1,29 @@
 import { Link, useNavigate, useLocation } from "@tanstack/react-router";
-import { useSession } from "@/hooks/use-session";
-import { connectWallet, disconnectWallet } from "@/lib/auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { shortAddress } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
 import { Sparkles, LogOut, Wallet, Settings } from "lucide-react";
-import { toast } from "sonner";
 import { useState } from "react";
 
 export function Header() {
-  const { user } = useSession();
+  const { ready, authenticated, user, login, logout } = usePrivy();
   const navigate = useNavigate();
   const location = useLocation();
   const [busy, setBusy] = useState(false);
-  const wallet = (user?.user_metadata?.wallet_address as string | undefined) ?? null;
+  const walletAddress = user?.wallet?.address ?? null;
 
   const onConnect = async () => {
     setBusy(true);
     try {
-      await connectWallet();
-      toast.success("Wallet connected");
+      await login();
       if (location.pathname === "/") navigate({ to: "/app" });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to connect");
     } finally {
       setBusy(false);
     }
   };
 
   const onDisconnect = async () => {
-    await disconnectWallet();
+    await logout();
     navigate({ to: "/" });
   };
 
@@ -44,7 +39,7 @@ export function Header() {
           </span>
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
-          {user && (
+          {authenticated && (
             <>
               <NavLink to="/app">Dashboard</NavLink>
               <NavLink to="/app/builder">Builder</NavLink>
@@ -53,12 +48,12 @@ export function Header() {
           )}
         </nav>
         <div className="flex items-center gap-2">
-          {user ? (
+          {authenticated ? (
             <>
               <div className="hidden items-center gap-2 rounded-full border border-border bg-card/40 px-3 py-1.5 sm:flex">
                 <span className="h-2 w-2 animate-pulse-slow rounded-full bg-success" />
                 <span className="font-mono-tabular text-xs text-muted-foreground">
-                  {shortAddress(wallet)}
+                  {shortAddress(walletAddress)}
                 </span>
               </div>
               <Button variant="ghost" size="icon" asChild aria-label="Settings">
@@ -69,7 +64,11 @@ export function Header() {
               </Button>
             </>
           ) : (
-            <Button onClick={onConnect} disabled={busy} className="bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90">
+            <Button
+              onClick={onConnect}
+              disabled={!ready || busy}
+              className="bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90"
+            >
               <Wallet className="mr-2 h-4 w-4" />
               {busy ? "Connecting…" : "Connect Wallet"}
             </Button>

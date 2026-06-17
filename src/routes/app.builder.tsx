@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { saveAgent, testRunAgent } from "@/fns/agents";
+import { getAgent, saveAgent, testRunAgent } from "@/fns/agents";
 import { toast } from "sonner";
 import { ArrowRight, Brain, CheckCircle2, CircleSlash, Code2, FlaskConical, Save, XCircle, Zap } from "lucide-react";
 
@@ -71,17 +70,12 @@ function Builder() {
 
   useEffect(() => {
     if (!id) return;
-    supabase
-      .from("agents")
-      .select("*")
-      .eq("id", id)
-      .single()
-      .then(({ data }) => {
+    getAgent({ data: { id } }).then((data) => {
         if (!data) return;
-        setName(data.name);
-        setDescription(data.description ?? "");
+        setName((data.name as string) ?? "");
+        setDescription((data.description as string) ?? "");
         setTrigger((data.trigger as unknown as Trigger) ?? trigger);
-        setAiPrompt(data.ai_prompt ?? "");
+        setAiPrompt((data.ai_prompt as string) ?? "");
         setAction((data.action as unknown as Action) ?? action);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,6 +1,35 @@
 import { Outlet, createRootRoute, HeadContent, Scripts, Link } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
+import { PrivyProvider } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
+import { useEffect } from "react";
+import { setPrivyToken } from "@/lib/privy-token";
 import appCss from "../styles.css?url";
+
+const PRIVY_APP_ID = "cmqhlqq1i00d70cjj9yqbva1w";
+
+function PrivyTokenSync() {
+  const { ready, authenticated, getAccessToken } = usePrivy();
+  useEffect(() => {
+    if (!ready) return;
+    if (!authenticated) {
+      setPrivyToken(null);
+      return;
+    }
+    let cancelled = false;
+    const sync = async () => {
+      const t = await getAccessToken();
+      if (!cancelled) setPrivyToken(t);
+    };
+    sync();
+    const interval = setInterval(sync, 25 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [ready, authenticated, getAccessToken]);
+  return null;
+}
 
 function NotFoundComponent() {
   return (
@@ -28,25 +57,40 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Ritual Agents — Autonomous AI agents on Ritual" },
-      {
-        name: "description",
-        content:
-          "Build, deploy, and monetize AI-powered onchain agents. The default automation layer for Ritual.",
-      },
+      { name: "description", content: "Build, deploy, and monetize AI-powered onchain agents." },
       { property: "og:title", content: "Ritual Agents" },
-      {
-        property: "og:description",
-        content: "Build AI-powered agents that monitor, decide, and execute onchain.",
-      },
+      { property: "og:description", content: "Build AI-powered agents that monitor, decide, and execute onchain." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootShell,
-  component: () => <Outlet />,
+  component: RootComponent,
   notFoundComponent: NotFoundComponent,
 });
+
+function RootComponent() {
+  return (
+    <PrivyProvider
+      appId={PRIVY_APP_ID}
+      config={{
+        loginMethods: ["wallet"],
+        appearance: {
+          theme: "dark",
+          accentColor: "#7c3aed",
+        },
+        embeddedWallets: {
+          createOnLogin: "users-without-wallets",
+          showWalletUIs: true,
+        },
+      }}
+    >
+      <PrivyTokenSync />
+      <Outlet />
+    </PrivyProvider>
+  );
+}
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
