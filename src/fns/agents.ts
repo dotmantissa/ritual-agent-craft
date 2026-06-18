@@ -36,7 +36,7 @@ export const listMyAgents = createServerFn({ method: 'GET' })
       WHERE owner_id = ${context.userId} AND is_template = false
       ORDER BY created_at DESC
     `;
-    return rows;
+    return [...rows];
   });
 
 export const listMyRecentRuns = createServerFn({ method: 'GET' })
@@ -51,7 +51,7 @@ export const listMyRecentRuns = createServerFn({ method: 'GET' })
       ORDER BY created_at DESC
       LIMIT 500
     `;
-    return rows;
+    return [...rows];
   });
 
 export const listTemplates = createServerFn({ method: 'GET' })
@@ -63,7 +63,7 @@ export const listTemplates = createServerFn({ method: 'GET' })
       WHERE is_template = true
       ORDER BY name
     `;
-    return rows;
+    return [...rows];
   });
 
 export const getAgent = createServerFn({ method: 'GET' })
@@ -90,7 +90,7 @@ export const getAgentRuns = createServerFn({ method: 'GET' })
       ORDER BY created_at DESC
       LIMIT 50
     `;
-    return rows;
+    return [...rows];
   });
 
 export const getRun = createServerFn({ method: 'GET' })
