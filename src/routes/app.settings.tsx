@@ -2,6 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { updateProfile } from "@/fns/users";
+import { getPrivyToken } from "@/lib/privy-token";
+
+function authHdr(): Record<string, string> {
+  const t = getPrivyToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,7 +58,7 @@ function Settings() {
   const saveProfile = async () => {
     setSavingProfile(true);
     try {
-      await updateProfile({ data: { displayName } });
+      await updateProfile({ data: { displayName }, headers: authHdr() });
       toast.success("Profile updated");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Update failed");

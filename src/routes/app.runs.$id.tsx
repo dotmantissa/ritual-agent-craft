@@ -23,8 +23,14 @@ import {
 const TX_HASH_RE = /0x[a-fA-F0-9]{16,}/g;
 const explorerUrl = (hash: string) => `https://explorer.ritualfoundation.org/tx/${hash}`;
 import { getRun, getAgentMeta } from "@/fns/agents";
+import { getPrivyToken } from "@/lib/privy-token";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+function authHdr(): Record<string, string> {
+  const t = getPrivyToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
 
 export const Route = createFileRoute("/app/runs/$id")({
   head: () => ({ meta: [{ title: "Run — Ritual Agents" }] }),
@@ -56,14 +62,14 @@ function RunDetail() {
 
   useEffect(() => {
     (async () => {
-      const data = await getRun({ data: { id } }).catch(() => null);
+      const data = await getRun({ data: { id }, headers: authHdr() }).catch(() => null);
       if (!data) {
         setNotFound(true);
         return;
       }
       const run = data as unknown as Run;
       setRun(run);
-      const a = await getAgentMeta({ data: { id: run.agent_id } }).catch(() => null);
+      const a = await getAgentMeta({ data: { id: run.agent_id }, headers: authHdr() }).catch(() => null);
       if (a) setAgent(a);
     })();
   }, [id]);

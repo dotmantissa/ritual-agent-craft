@@ -3,7 +3,13 @@ import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { getAgent, getAgentRuns, toggleAgent, deleteAgent } from "@/fns/agents";
+import { getPrivyToken } from "@/lib/privy-token";
 import { toast } from "sonner";
+
+function authHdr(): Record<string, string> {
+  const t = getPrivyToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
 import {
   ArrowLeft,
   Brain,
@@ -53,9 +59,10 @@ function AgentDetail() {
   const [runs, setRuns] = useState<Run[]>([]);
 
   const load = async () => {
+    const headers = authHdr();
     const [a, r] = await Promise.all([
-      getAgent({ data: { id } }),
-      getAgentRuns({ data: { agentId: id } }),
+      getAgent({ data: { id }, headers }),
+      getAgentRuns({ data: { agentId: id }, headers }),
     ]);
     if (a) setAgent(a as unknown as Agent);
     if (r) setRuns(r as unknown as Run[]);
@@ -65,7 +72,7 @@ function AgentDetail() {
     load();
     const interval = setInterval(async () => {
       try {
-        const r = await getAgentRuns({ data: { agentId: id } });
+        const r = await getAgentRuns({ data: { agentId: id }, headers: authHdr() });
         if (r) setRuns(r as unknown as Run[]);
       } catch (e) {
         console.error("poll failed", e);
@@ -112,7 +119,7 @@ function AgentDetail() {
               className="border-border bg-card/40"
               onClick={async () => {
                 const next = agent.status === "active" ? "paused" : "active";
-                await toggleAgent({ data: { id: agent.id, status: next } });
+                await toggleAgent({ data: { id: agent.id, status: next }, headers: authHdr() });
                 setAgent({ ...agent, status: next });
                 toast.success(next === "active" ? "Resumed" : "Paused");
               }}
@@ -125,7 +132,7 @@ function AgentDetail() {
               className="border-destructive/40 bg-card/40 text-destructive hover:text-destructive"
               onClick={async () => {
                 if (!confirm("Delete this agent?")) return;
-                await deleteAgent({ data: { id: agent.id } });
+                await deleteAgent({ data: { id: agent.id }, headers: authHdr() });
                 toast.success("Deleted");
                 navigate({ to: "/app" });
               }}

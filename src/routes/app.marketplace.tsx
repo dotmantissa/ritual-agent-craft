@@ -4,6 +4,12 @@ import { Button } from "@/components/ui/button";
 import { forkTemplate, listTemplates } from "@/fns/agents";
 import { toast } from "sonner";
 import { GitFork, Plus, Sparkles } from "lucide-react";
+import { getPrivyToken } from "@/lib/privy-token";
+
+function authHdr(): Record<string, string> {
+  const t = getPrivyToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
 
 export const Route = createFileRoute("/app/marketplace")({
   head: () => ({
@@ -34,7 +40,7 @@ function Marketplace() {
   const fork = async (id: string) => {
     setBusy(id);
     try {
-      await forkTemplate({ data: { template_id: id } });
+      await forkTemplate({ data: { template_id: id }, headers: authHdr() });
       toast.success("Agent forked to your library");
       navigate({ to: "/app" });
     } catch (e) {

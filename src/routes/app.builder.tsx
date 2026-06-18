@@ -5,6 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { getPrivyToken } from "@/lib/privy-token";
+
+function authHdr(): Record<string, string> {
+  const t = getPrivyToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
 import {
   Select,
   SelectContent,
@@ -70,7 +76,7 @@ function Builder() {
 
   useEffect(() => {
     if (!id) return;
-    getAgent({ data: { id } }).then((data) => {
+    getAgent({ data: { id }, headers: authHdr() }).then((data) => {
         if (!data) return;
         setName((data.name as string) ?? "");
         setDescription((data.description as string) ?? "");
@@ -94,7 +100,7 @@ function Builder() {
     }
     setTesting(true);
     try {
-      const result = await testRunAgent({ data: { id } });
+      const result = await testRunAgent({ data: { id }, headers: authHdr() });
       setTestResult(result as typeof testResult);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Test run failed");
@@ -129,6 +135,7 @@ function Builder() {
           ...payload,
           status: "active",
         },
+        headers: authHdr(),
       });
       toast.success(id ? "Agent updated" : "Agent deployed");
       navigate({ to: "/app" });
