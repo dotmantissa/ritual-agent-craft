@@ -27,7 +27,12 @@ export const requireAuth = createMiddleware({ type: 'function' })
       });
       const userId = payload.sub as string;
       return next({ context: { userId } });
-    } catch {
+    } catch (err) {
+      console.error('JWT verify failed', {
+        message: err instanceof Error ? err.message : String(err),
+        configuredAudience: PRIVY_APP_ID,
+        usingDefaultAudience: !process.env.PRIVY_APP_ID,
+      });
       throw Object.assign(new Error('Unauthorized: Invalid token'), { status: 401 });
     }
   });
