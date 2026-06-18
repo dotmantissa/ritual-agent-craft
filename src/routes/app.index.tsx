@@ -5,6 +5,12 @@ import { listMyAgents, listMyRecentRuns, tickAgents, toggleAgent, deleteAgent } 
 import { Plus, Play, Pause, Trash2, Activity, ArrowRight, Sparkles, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getPrivyToken } from "@/lib/privy-token";
+
+function authHdr(): Record<string, string> {
+  const t = getPrivyToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
 
 export const Route = createFileRoute("/app/")({
   head: () => ({
@@ -32,10 +38,11 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    const headers = authHdr();
     try {
       const [a, r] = await Promise.all([
-        listMyAgents(),
-        listMyRecentRuns(),
+        listMyAgents({ headers }),
+        listMyRecentRuns({ headers }),
       ]);
       setAgents((a ?? []) as unknown as Agent[]);
       setRuns((r ?? []) as unknown as Run[]);
@@ -52,9 +59,10 @@ function Dashboard() {
   useEffect(() => {
     if (!agents.some((a) => a.status === "active")) return;
     const interval = setInterval(async () => {
+      const headers = authHdr();
       try {
-        await tickAgents();
-        const r = await listMyRecentRuns();
+        await tickAgents({ headers });
+        const r = await listMyRecentRuns({ headers });
         setRuns((r ?? []) as unknown as Run[]);
       } catch (e) {
         console.error("tick failed", e);
@@ -122,7 +130,7 @@ function Dashboard() {
                   <Sparkline runs={agentRuns} />
                   <Button size="icon" variant="ghost" onClick={async () => {
                     const next = agent.status === "active" ? "paused" : "active";
-                    await toggleAgent({ data: { id: agent.id, status: next } });
+                    await toggleAgent({ data: { id: agent.id, status: next }, headers: authHdr() });
                     toast.success(next === "active" ? "Agent resumed" : "Agent paused");
                     refresh();
                   }}>
@@ -130,7 +138,7 @@ function Dashboard() {
                   </Button>
                   <Button size="icon" variant="ghost" onClick={async () => {
                     if (!confirm(`Delete "${agent.name}"?`)) return;
-                    await deleteAgent({ data: { id: agent.id } });
+                    await deleteAgent({ data: { id: agent.id }, headers: authHdr() });
                     toast.success("Agent deleted");
                     refresh();
                   }}>

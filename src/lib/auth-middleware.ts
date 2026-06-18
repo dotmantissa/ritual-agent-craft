@@ -17,7 +17,7 @@ export const requireAuth = createMiddleware({ type: 'function' })
     const request = getRequest();
     const authHeader = request?.headers?.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      throw new Response('Unauthorized', { status: 401 });
+      throw Object.assign(new Error('Unauthorized'), { status: 401 });
     }
     const token = authHeader.slice(7);
     try {
@@ -28,6 +28,6 @@ export const requireAuth = createMiddleware({ type: 'function' })
       const userId = payload.sub as string;
       return next({ context: { userId } });
     } catch {
-      throw new Response('Unauthorized: Invalid token', { status: 401 });
+      throw Object.assign(new Error('Unauthorized: Invalid token'), { status: 401 });
     }
   });

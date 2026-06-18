@@ -34,7 +34,7 @@ function AppLayout() {
       setTokenReady(true);
       const address = user?.wallet?.address ?? "";
       try {
-        await ensureUser({ data: { walletAddress: address } });
+        await ensureUser({ data: { walletAddress: address }, headers: { Authorization: `Bearer ${token}` } });
       } catch (e) {
         console.error("ensureUser failed", e);
       }
