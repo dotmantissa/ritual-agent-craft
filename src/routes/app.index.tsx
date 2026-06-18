@@ -32,13 +32,19 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [a, r] = await Promise.all([
-      listMyAgents(),
-      listMyRecentRuns(),
-    ]);
-    setAgents((a ?? []) as unknown as Agent[]);
-    setRuns((r ?? []) as unknown as Run[]);
-    setLoading(false);
+    try {
+      const [a, r] = await Promise.all([
+        listMyAgents(),
+        listMyRecentRuns(),
+      ]);
+      setAgents((a ?? []) as unknown as Agent[]);
+      setRuns((r ?? []) as unknown as Run[]);
+    } catch (e) {
+      console.error("dashboard fetch failed", e);
+      toast.error("Failed to load dashboard — " + (e instanceof Error ? e.message : "unknown error"));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);

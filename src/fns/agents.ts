@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { requireAuth } from '@/lib/auth-middleware';
+import { attachAuth } from '@/lib/auth-attacher';
 import { getDb } from '@/lib/db';
 import { z } from 'zod';
 import { generateEvent, executeAction } from '../server/chain/mockChain.server';
@@ -26,7 +27,7 @@ const AgentInput = z.object({
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
 export const listMyAgents = createServerFn({ method: 'GET' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .handler(async ({ context }) => {
     const sql = getDb();
     const rows = await sql`
@@ -39,7 +40,7 @@ export const listMyAgents = createServerFn({ method: 'GET' })
   });
 
 export const listMyRecentRuns = createServerFn({ method: 'GET' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .handler(async ({ context }) => {
     const sql = getDb();
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
@@ -66,7 +67,7 @@ export const listTemplates = createServerFn({ method: 'GET' })
   });
 
 export const getAgent = createServerFn({ method: 'GET' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const sql = getDb();
@@ -79,7 +80,7 @@ export const getAgent = createServerFn({ method: 'GET' })
   });
 
 export const getAgentRuns = createServerFn({ method: 'GET' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) => z.object({ agentId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const sql = getDb();
@@ -93,7 +94,7 @@ export const getAgentRuns = createServerFn({ method: 'GET' })
   });
 
 export const getRun = createServerFn({ method: 'GET' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const sql = getDb();
@@ -106,7 +107,7 @@ export const getRun = createServerFn({ method: 'GET' })
   });
 
 export const getAgentMeta = createServerFn({ method: 'GET' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const sql = getDb();
@@ -118,7 +119,7 @@ export const getAgentMeta = createServerFn({ method: 'GET' })
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export const saveAgent = createServerFn({ method: 'POST' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) => AgentInput.parse(input))
   .handler(async ({ data, context }) => {
     const sql = getDb();
@@ -146,7 +147,7 @@ export const saveAgent = createServerFn({ method: 'POST' })
   });
 
 export const toggleAgent = createServerFn({ method: 'POST' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) =>
     z.object({ id: z.string().uuid(), status: z.enum(['active', 'paused']) }).parse(input),
   )
@@ -160,7 +161,7 @@ export const toggleAgent = createServerFn({ method: 'POST' })
   });
 
 export const deleteAgent = createServerFn({ method: 'POST' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const sql = getDb();
@@ -169,7 +170,7 @@ export const deleteAgent = createServerFn({ method: 'POST' })
   });
 
 export const forkTemplate = createServerFn({ method: 'POST' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) => z.object({ template_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const sql = getDb();
@@ -188,7 +189,7 @@ export const forkTemplate = createServerFn({ method: 'POST' })
   });
 
 export const tickAgents = createServerFn({ method: 'POST' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .handler(async ({ context }) => {
     const sql = getDb();
     const agents = await sql`
@@ -299,7 +300,7 @@ async function aiDecide(
 }
 
 export const testRunAgent = createServerFn({ method: 'POST' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const sql = getDb();

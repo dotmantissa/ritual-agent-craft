@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { requireAuth } from '@/lib/auth-middleware';
+import { attachAuth } from '@/lib/auth-attacher';
 import { getDb } from '@/lib/db';
 import { z } from 'zod';
 
@@ -10,7 +11,7 @@ export type UserProfile = {
 };
 
 export const ensureUser = createServerFn({ method: 'POST' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) =>
     z.object({ walletAddress: z.string() }).parse(input),
   )
@@ -27,7 +28,7 @@ export const ensureUser = createServerFn({ method: 'POST' })
   });
 
 export const updateProfile = createServerFn({ method: 'POST' })
-  .middleware([requireAuth])
+  .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) =>
     z.object({ displayName: z.string().max(80) }).parse(input),
   )
