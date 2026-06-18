@@ -41,7 +41,7 @@ export function Header() {
         <nav className="hidden items-center gap-1 md:flex">
           {authenticated && (
             <>
-              <NavLink to="/app">Dashboard</NavLink>
+              <NavLink to="/app" exact>Dashboard</NavLink>
               <NavLink to="/app/builder">Builder</NavLink>
               <NavLink to="/app/marketplace">Marketplace</NavLink>
             </>
@@ -79,10 +79,11 @@ export function Header() {
   );
 }
 
-function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
+function NavLink({ to, children, exact }: { to: string; children: React.ReactNode; exact?: boolean }) {
   return (
     <Link
       to={to}
+      activeOptions={exact ? { exact: true } : undefined}
       className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
       activeProps={{ className: "rounded-md px-3 py-1.5 text-sm text-foreground bg-accent/10" }}
     >

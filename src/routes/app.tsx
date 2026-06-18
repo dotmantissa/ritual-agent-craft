@@ -38,6 +38,8 @@ function AppLayout() {
       } catch (e) {
         console.error("ensureUser failed", e);
       }
+    }).catch((e) => {
+      console.error("auth init failed", e);
     });
   }, [ready, authenticated]);
 

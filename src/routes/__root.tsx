@@ -32,8 +32,12 @@ function PrivyTokenSync() {
     }
     let cancelled = false;
     const sync = async () => {
-      const t = await getAccessToken();
-      if (!cancelled) setPrivyToken(t);
+      try {
+        const t = await getAccessToken();
+        if (!cancelled) setPrivyToken(t);
+      } catch (e) {
+        console.error("PrivyTokenSync failed", e);
+      }
     };
     sync();
     const interval = setInterval(sync, 25 * 60 * 1000);
