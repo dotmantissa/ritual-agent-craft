@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { getPrivyToken } from "@/lib/privy-token";
+import { useSendTransaction } from "@privy-io/react-auth";
+import { SOVEREIGN_FACTORY, RITUAL_CHAIN_ID, RITUAL_EXPLORER, encodeDeployHarness } from "@/lib/ritualDeploy";
 
 function authHdr(): Record<string, string> {
   const t = getPrivyToken();
@@ -58,6 +60,7 @@ const actionLabels: Record<Action["type"], string> = {
 function Builder() {
   const navigate = useNavigate();
   const { id } = Route.useSearch();
+  const { sendTransaction } = useSendTransaction();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [trigger, setTrigger] = useState<Trigger>({ type: "wallet_activity", params: { min_usd: 10000 } });
@@ -127,17 +130,50 @@ function Builder() {
           return;
         }
       }
-      await saveAgent({
-        data: {
-          id,
-          name,
-          description,
-          ...payload,
-          status: "active",
-        },
+
+      const saved = await saveAgent({
+        data: { id, name, description, ...payload, status: "active" },
         headers: authHdr(),
-      });
-      toast.success(id ? "Agent updated" : "Agent deployed");
+      }) as { id: string } | null;
+
+      // For new agents only: send a real on-chain deployHarness tx
+      if (!id && saved?.id) {
+        const calldata = encodeDeployHarness(saved.id);
+        let txHash: string | undefined;
+        try {
+          const result = await sendTransaction({
+            to: SOVEREIGN_FACTORY,
+            data: calldata,
+            chainId: RITUAL_CHAIN_ID,
+          });
+          txHash = typeof result === "string" ? result : (result as { hash?: string })?.hash;
+        } catch (txErr) {
+          // Non-fatal: agent is saved to DB; show warning but still navigate
+          const msg = txErr instanceof Error ? txErr.message : "unknown error";
+          if (msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("denied")) {
+            toast.warning("Agent saved but on-chain deployment was cancelled.");
+          } else {
+            toast.warning(`Agent saved. On-chain deploy failed: ${msg}`);
+          }
+          navigate({ to: "/app" });
+          return;
+        }
+
+        if (txHash) {
+          toast.success("Agent deployed on Ritual testnet", {
+            description: `Tx: ${txHash.slice(0, 18)}…`,
+            action: {
+              label: "View on explorer",
+              onClick: () => window.open(`${RITUAL_EXPLORER}/tx/${txHash}`, "_blank"),
+            },
+          });
+        } else {
+          toast.success("Agent deployed");
+        }
+      } else {
+        toast.success("Agent updated");
+      }
+
       navigate({ to: "/app" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
