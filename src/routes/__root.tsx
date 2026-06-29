@@ -4,23 +4,10 @@ import { PrivyProvider } from "@privy-io/react-auth";
 import { usePrivy } from "@privy-io/react-auth";
 import { useEffect } from "react";
 import { setPrivyToken } from "@/lib/privy-token";
-import { defineChain } from "viem";
+import { ritualTestnet } from "@/lib/ritualDeploy";
 import appCss from "../styles.css?url";
 
 const PRIVY_APP_ID = import.meta.env.VITE_PRIVY_APP_ID as string;
-
-export const ritualTestnet = defineChain({
-  id: 1979,
-  name: "Ritual Testnet",
-  nativeCurrency: { name: "Ritual", symbol: "RITUAL", decimals: 18 },
-  rpcUrls: {
-    default: { http: ["https://rpc.ritualfoundation.org"] },
-  },
-  blockExplorers: {
-    default: { name: "Ritual Explorer", url: "https://explorer.ritualfoundation.org" },
-  },
-  testnet: true,
-});
 
 function PrivyTokenSync() {
   const { ready, authenticated, getAccessToken } = usePrivy();
@@ -54,9 +41,9 @@ function NotFoundComponent() {
     <div className="grid min-h-screen place-items-center px-4">
       <div className="glass max-w-md rounded-2xl p-8 text-center">
         <h1 className="text-7xl font-bold text-gradient">404</h1>
-        <h2 className="mt-2 text-xl font-semibold">Signal lost</h2>
+        <h2 className="mt-2 text-xl font-semibold">Page not found</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          That route doesn't exist on the Ritual network.
+          That route does not exist on this network.
         </p>
         <Link
           to="/app"
@@ -74,10 +61,10 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Ritual Agents — Autonomous AI agents on Ritual" },
-      { name: "description", content: "Build, deploy, and monetize AI-powered onchain agents." },
+      { title: "Ritual Agents | Autonomous AI agents on Ritual" },
+      { name: "description", content: "Deploy autonomous AI agents as sovereign contracts on Ritual Testnet." },
       { property: "og:title", content: "Ritual Agents" },
-      { property: "og:description", content: "Build AI-powered agents that monitor, decide, and execute onchain." },
+      { property: "og:description", content: "Build AI agents that monitor, decide, and execute onchain." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

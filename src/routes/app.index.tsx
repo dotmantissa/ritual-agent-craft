@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { listMyAgents, listMyRecentRuns, tickAgents, toggleAgent, deleteAgent } from "@/fns/agents";
-import { Plus, Play, Pause, Trash2, Activity, ArrowRight, Sparkles, Zap } from "lucide-react";
+import { listMyAgents, toggleAgent, deleteAgent } from "@/fns/agents";
+import { Plus, Play, Pause, Trash2, ArrowRight, Sparkles, Zap, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getPrivyToken } from "@/lib/privy-token";
+import { RITUAL_EXPLORER } from "@/lib/ritualDeploy";
+import { shortAddress } from "@/lib/wallet";
 
 function authHdr(): Record<string, string> {
   const t = getPrivyToken();
@@ -15,7 +17,7 @@ function authHdr(): Record<string, string> {
 export const Route = createFileRoute("/app/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Ritual Agents" },
+      { title: "Dashboard | Ritual Agents" },
       { name: "description", content: "Monitor your active AI agents and their onchain activity." },
     ],
   }),
@@ -23,32 +25,31 @@ export const Route = createFileRoute("/app/")({
 });
 
 type Agent = {
-  id: string; name: string; description: string | null;
+  id: string;
+  name: string;
+  description: string | null;
   status: "active" | "paused";
   trigger: { type: string; params?: Record<string, unknown> };
   action: { type: string; params?: Record<string, unknown> };
   category: string | null;
+  tx_hash: string | null;
+  harness_address: string | null;
+  created_at: string;
 };
-type Run = { id: string; agent_id: string; status: "success" | "skipped" | "failed"; created_at: string };
 
 function Dashboard() {
   const navigate = useNavigate();
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     const headers = authHdr();
     try {
-      const [a, r] = await Promise.all([
-        listMyAgents({ headers }),
-        listMyRecentRuns({ headers }),
-      ]);
+      const a = await listMyAgents({ headers });
       setAgents((a ?? []) as unknown as Agent[]);
-      setRuns((r ?? []) as unknown as Run[]);
     } catch (e) {
       console.error("dashboard fetch failed", e);
-      toast.error("Failed to load dashboard — " + (e instanceof Error ? e.message : "unknown error"));
+      toast.error("Failed to load your agents");
     } finally {
       setLoading(false);
     }
@@ -56,100 +57,161 @@ function Dashboard() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  useEffect(() => {
-    if (!agents.some((a) => a.status === "active")) return;
-    const interval = setInterval(async () => {
-      const headers = authHdr();
-      try {
-        await tickAgents({ headers });
-        const r = await listMyRecentRuns({ headers });
-        setRuns((r ?? []) as unknown as Run[]);
-      } catch (e) {
-        console.error("tick failed", e);
-        toast.error("Agent tick failed — " + (e instanceof Error ? e.message : "unknown error"));
-      }
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [agents]);
-
   const active = agents.filter((a) => a.status === "active").length;
-  const totalActions = runs.length;
-  const successCount = runs.filter((r) => r.status === "success").length;
-  const successRate = totalActions > 0 ? Math.round((successCount / totalActions) * 100) : 0;
+  const paused = agents.filter((a) => a.status === "paused").length;
 
-  if (loading) return <div className="font-mono-tabular text-sm text-muted-foreground">Loading dashboard…</div>;
+  if (loading) {
+    return (
+      <div className="grid min-h-64 place-items-center">
+        <span className="animate-pulse text-sm text-muted-foreground">Loading agents...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mission Control</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Live view of your autonomous agents on Ritual.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Your Agents</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sovereign agent contracts deployed on Ritual Testnet.
+          </p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline" className="border-border bg-card/40">
-            <Link to="/app/marketplace"><Sparkles className="mr-2 h-4 w-4" />Marketplace</Link>
+            <Link to="/app/marketplace">
+              <Sparkles className="mr-2 h-4 w-4" />
+              Templates
+            </Link>
           </Button>
           <Button asChild className="bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90">
-            <Link to="/app/builder" search={{ id: undefined }}><Plus className="mr-2 h-4 w-4" />New agent</Link>
+            <Link to="/app/builder" search={{ id: undefined, name: undefined, description: undefined, trigger: undefined, ai_prompt: undefined, action: undefined }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Deploy agent
+            </Link>
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi label="Active agents" value={active.toString()} />
-        <Kpi label="Actions (24h)" value={totalActions.toString()} />
-        <Kpi label="Success rate" value={`${successRate}%`} accent="success" />
-        <Kpi label="AI calls (24h)" value={runs.filter((r) => r.status !== "skipped").length.toString()} />
-      </div>
+      {agents.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Kpi label="Total deployed" value={agents.length.toString()} />
+          <Kpi label="Active" value={active.toString()} accent="success" />
+          <Kpi label="Paused" value={paused.toString()} />
+        </div>
+      )}
 
       {agents.length === 0 ? (
         <EmptyState />
       ) : (
         <div className="glass overflow-hidden rounded-2xl">
-          <div className="border-b border-border px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Your agents</div>
+          <div className="border-b border-border px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Deployed agents
+          </div>
           <ul className="divide-y divide-border">
-            {agents.map((agent) => {
-              const agentRuns = runs.filter((r) => r.agent_id === agent.id);
-              return (
-                <li key={agent.id} className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-card/40">
-                  <div className={cn("h-2 w-2 rounded-full", agent.status === "active" ? "bg-success animate-pulse-slow" : "bg-muted-foreground/40")} />
-                  <button onClick={() => navigate({ to: "/app/agents/$id", params: { id: agent.id } })} className="flex-1 text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{agent.name}</span>
-                      {agent.category && (
-                        <span className="rounded-full border border-border bg-card/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">{agent.category}</span>
-                      )}
-                    </div>
-                    <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="font-mono-tabular">{agent.trigger.type} → {agent.action.type}</span>
-                      <span>·</span>
-                      <span>{agentRuns.length} actions / 24h</span>
-                    </div>
-                  </button>
-                  <Sparkline runs={agentRuns} />
-                  <Button size="icon" variant="ghost" onClick={async () => {
+            {agents.map((agent) => (
+              <li
+                key={agent.id}
+                className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-card/40"
+              >
+                <div
+                  className={cn(
+                    "h-2 w-2 shrink-0 rounded-full",
+                    agent.status === "active"
+                      ? "animate-pulse-slow bg-success"
+                      : "bg-muted-foreground/40",
+                  )}
+                />
+                <button
+                  onClick={() => navigate({ to: "/app/agents/$id", params: { id: agent.id } })}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{agent.name}</span>
+                    {agent.category && (
+                      <span className="hidden rounded-full border border-border bg-card/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground sm:inline">
+                        {agent.category}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="truncate font-mono text-[10px]">
+                      {agent.harness_address
+                        ? shortAddress(agent.harness_address)
+                        : "Deploying..."}
+                    </span>
+                    {agent.harness_address && (
+                      <a
+                        href={`${RITUAL_EXPLORER}/address/${agent.harness_address}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-accent hover:text-accent/80"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                </button>
+
+                <div className="hidden flex-col items-end gap-0.5 sm:flex">
+                  <span className="text-xs text-muted-foreground">
+                    {agent.trigger.type.replace(/_/g, " ")}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/60">
+                    → {agent.action.type.replace(/_/g, " ")}
+                  </span>
+                </div>
+
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  title={agent.status === "active" ? "Pause agent" : "Resume agent"}
+                  onClick={async () => {
                     const next = agent.status === "active" ? "paused" : "active";
-                    await toggleAgent({ data: { id: agent.id, status: next }, headers: authHdr() });
-                    toast.success(next === "active" ? "Agent resumed" : "Agent paused");
-                    refresh();
-                  }}>
-                    {agent.status === "active" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={async () => {
-                    if (!confirm(`Delete "${agent.name}"?`)) return;
-                    await deleteAgent({ data: { id: agent.id }, headers: authHdr() });
-                    toast.success("Agent deleted");
-                    refresh();
-                  }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => navigate({ to: "/app/agents/$id", params: { id: agent.id } })}>
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </li>
-              );
-            })}
+                    try {
+                      await toggleAgent({ data: { id: agent.id, status: next }, headers: authHdr() });
+                      toast.success(next === "active" ? "Agent resumed" : "Agent paused");
+                      refresh();
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Failed to update agent");
+                    }
+                  }}
+                >
+                  {agent.status === "active" ? (
+                    <Pause className="h-4 w-4" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                </Button>
+
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  title="Delete agent"
+                  onClick={async () => {
+                    if (!confirm(`Delete "${agent.name}"? This cannot be undone.`)) return;
+                    try {
+                      await deleteAgent({ data: { id: agent.id }, headers: authHdr() });
+                      toast.success("Agent deleted");
+                      refresh();
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Delete failed");
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => navigate({ to: "/app/agents/$id", params: { id: agent.id } })}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </li>
+            ))}
           </ul>
         </div>
       )}
@@ -161,27 +223,14 @@ function Kpi({ label, value, accent }: { label: string; value: string; accent?: 
   return (
     <div className="glass rounded-xl p-4">
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={cn("mt-2 font-mono-tabular text-2xl font-semibold", accent === "success" ? "text-success" : "text-gradient")}>{value}</div>
-    </div>
-  );
-}
-
-function Sparkline({ runs }: { runs: Run[] }) {
-  const buckets = new Array(12).fill(0) as number[];
-  const now = Date.now();
-  const window = 24 * 3600 * 1000;
-  for (const r of runs) {
-    const ago = now - new Date(r.created_at).getTime();
-    if (ago > window) continue;
-    const idx = Math.min(11, Math.floor((window - ago) / (window / 12)));
-    buckets[idx]++;
-  }
-  const max = Math.max(1, ...buckets);
-  return (
-    <div className="hidden items-end gap-0.5 sm:flex">
-      {buckets.map((v, i) => (
-        <div key={i} className="w-1 rounded-sm bg-gradient-primary opacity-80" style={{ height: `${4 + (v / max) * 22}px` }} />
-      ))}
+      <div
+        className={cn(
+          "mt-2 font-mono text-2xl font-semibold",
+          accent === "success" ? "text-success" : "text-gradient",
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -192,20 +241,24 @@ function EmptyState() {
       <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-primary neon-glow">
         <Zap className="h-7 w-7 text-primary-foreground" />
       </div>
-      <h2 className="text-xl font-semibold">No agents yet</h2>
+      <h2 className="text-xl font-semibold">No agents deployed yet</h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-        Fork a template from the marketplace to start in seconds, or build your own from scratch.
+        Start from a template or build your own from scratch. Each agent is a sovereign harness
+        contract deployed to Ritual Testnet by your wallet.
       </p>
       <div className="mt-6 flex justify-center gap-2">
         <Button asChild variant="outline" className="border-border bg-card/40">
-          <Link to="/app/marketplace"><Sparkles className="mr-2 h-4 w-4" />Browse marketplace</Link>
+          <Link to="/app/marketplace">
+            <Sparkles className="mr-2 h-4 w-4" />
+            Browse templates
+          </Link>
         </Button>
         <Button asChild className="bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90">
-          <Link to="/app/builder" search={{ id: undefined }}><Plus className="mr-2 h-4 w-4" />Create agent</Link>
+          <Link to="/app/builder" search={{ id: undefined, name: undefined, description: undefined, trigger: undefined, ai_prompt: undefined, action: undefined }}>
+            <Plus className="mr-2 h-4 w-4" />
+            Deploy agent
+          </Link>
         </Button>
-      </div>
-      <div className="mt-6 inline-flex items-center gap-2 text-xs text-muted-foreground">
-        <Activity className="h-3 w-3" /> Engine idle — deploy an agent to start the event stream.
       </div>
     </div>
   );

@@ -33,7 +33,7 @@ function authHdr(): Record<string, string> {
 }
 
 export const Route = createFileRoute("/app/runs/$id")({
-  head: () => ({ meta: [{ title: "Run — Ritual Agents" }] }),
+  head: () => ({ meta: [{ title: "Run Detail | Ritual Agents" }] }),
   validateSearch: (search: Record<string, unknown>) => ({
     q: typeof search.q === "string" ? search.q : "",
   }),
@@ -166,7 +166,7 @@ function RunDetail() {
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No AI policy attached — agent acted on trigger directly.
+            No AI policy attached. Agent acted on trigger directly.
           </p>
         )}
       </Section>
@@ -174,7 +174,7 @@ function RunDetail() {
       <Section
         icon={CheckCircle2}
         title="Action result"
-        subtitle="Mock transaction execution output"
+        subtitle="Transaction execution output"
       >
         {run.status === "success" && run.action_result ? (
           <>
@@ -183,7 +183,7 @@ function RunDetail() {
           </>
         ) : run.status === "skipped" ? (
           <p className="text-sm text-muted-foreground">
-            Action skipped — AI policy declined to execute.
+            Action skipped. AI policy declined to execute.
           </p>
         ) : run.status === "failed" ? (
           <p className="text-sm text-destructive">
@@ -257,7 +257,7 @@ function buildLogs(run: Run): LogEntry[] {
       level: "info",
       source: "runtime",
       icon: Terminal,
-      message: "No AI policy — proceeding to action",
+      message: "No AI policy. Proceeding to action.",
     });
   }
 
@@ -295,7 +295,7 @@ function buildLogs(run: Run): LogEntry[] {
       level: "warn",
       source: "runtime",
       icon: CircleSlash,
-      message: "Run skipped — no transaction submitted",
+      message: "Run skipped. No transaction submitted.",
     });
   } else if (run.status === "failed") {
     entries.push({

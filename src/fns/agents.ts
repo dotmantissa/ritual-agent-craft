@@ -3,7 +3,6 @@ import { requireAuth } from '@/lib/auth-middleware';
 import { attachAuth } from '@/lib/auth-attacher';
 import { getDb } from '@/lib/db';
 import { z } from 'zod';
-import { generateEvent, executeAction } from '../server/chain/mockChain.server';
 
 const TriggerSchema = z.object({
   type: z.enum(['wallet_activity', 'contract_event', 'price_threshold', 'scheduled']),
@@ -15,13 +14,15 @@ const ActionSchema = z.object({
 });
 
 const AgentInput = z.object({
-  id: z.string().uuid().optional(),
+  id: z.string().uuid(),
   name: z.string().min(1).max(80),
   description: z.string().max(500).optional().default(''),
   trigger: TriggerSchema,
   ai_prompt: z.string().max(2000).optional().default(''),
   action: ActionSchema,
   status: z.enum(['active', 'paused']).optional().default('active'),
+  tx_hash: z.string().optional(),
+  harness_address: z.string().optional(),
 });
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
@@ -31,25 +32,10 @@ export const listMyAgents = createServerFn({ method: 'GET' })
   .handler(async ({ context }) => {
     const sql = getDb();
     const rows = await sql`
-      SELECT id, name, description, status, trigger, action, category
+      SELECT id, name, description, status, trigger, action, category, tx_hash, harness_address, created_at
       FROM agents
       WHERE owner_id = ${context.userId} AND is_template = false
       ORDER BY created_at DESC
-    `;
-    return [...rows];
-  });
-
-export const listMyRecentRuns = createServerFn({ method: 'GET' })
-  .middleware([attachAuth, requireAuth])
-  .handler(async ({ context }) => {
-    const sql = getDb();
-    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const rows = await sql`
-      SELECT id, agent_id, status, created_at
-      FROM agent_runs
-      WHERE owner_id = ${context.userId} AND created_at >= ${since}
-      ORDER BY created_at DESC
-      LIMIT 500
     `;
     return [...rows];
   });
@@ -118,31 +104,56 @@ export const getAgentMeta = createServerFn({ method: 'GET' })
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
+// Called after on-chain tx succeeds. Stores agent only when deployment is confirmed.
 export const saveAgent = createServerFn({ method: 'POST' })
   .middleware([attachAuth, requireAuth])
   .inputValidator((input: unknown) => AgentInput.parse(input))
   .handler(async ({ data, context }) => {
     const sql = getDb();
-    if (data.id) {
-      const rows = await sql`
-        UPDATE agents SET
-          name = ${data.name}, description = ${data.description},
-          trigger = ${JSON.stringify(data.trigger)}, ai_prompt = ${data.ai_prompt},
-          action = ${JSON.stringify(data.action)}, status = ${data.status},
-          updated_at = now()
-        WHERE id = ${data.id} AND owner_id = ${context.userId}
-        RETURNING *
-      `;
-      if (!rows.length) throw new Error('Agent not found');
-      return rows[0];
-    }
     const rows = await sql`
-      INSERT INTO agents (owner_id, name, description, trigger, ai_prompt, action, status)
-      VALUES (${context.userId}, ${data.name}, ${data.description},
-              ${JSON.stringify(data.trigger)}, ${data.ai_prompt},
-              ${JSON.stringify(data.action)}, ${data.status})
+      INSERT INTO agents (id, owner_id, name, description, trigger, ai_prompt, action, status, tx_hash, harness_address)
+      VALUES (
+        ${data.id}, ${context.userId}, ${data.name}, ${data.description},
+        ${JSON.stringify(data.trigger)}, ${data.ai_prompt},
+        ${JSON.stringify(data.action)}, ${data.status},
+        ${data.tx_hash ?? null}, ${data.harness_address ?? null}
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name, description = EXCLUDED.description,
+        trigger = EXCLUDED.trigger, ai_prompt = EXCLUDED.ai_prompt,
+        action = EXCLUDED.action, status = EXCLUDED.status,
+        tx_hash = COALESCE(EXCLUDED.tx_hash, agents.tx_hash),
+        harness_address = COALESCE(EXCLUDED.harness_address, agents.harness_address),
+        updated_at = now()
       RETURNING *
     `;
+    return rows[0];
+  });
+
+export const updateAgent = createServerFn({ method: 'POST' })
+  .middleware([attachAuth, requireAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      name: z.string().min(1).max(80),
+      description: z.string().max(500).optional().default(''),
+      trigger: TriggerSchema,
+      ai_prompt: z.string().max(2000).optional().default(''),
+      action: ActionSchema,
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const sql = getDb();
+    const rows = await sql`
+      UPDATE agents SET
+        name = ${data.name}, description = ${data.description},
+        trigger = ${JSON.stringify(data.trigger)}, ai_prompt = ${data.ai_prompt},
+        action = ${JSON.stringify(data.action)},
+        updated_at = now()
+      WHERE id = ${data.id} AND owner_id = ${context.userId}
+      RETURNING *
+    `;
+    if (!rows.length) throw new Error('Agent not found');
     return rows[0];
   });
 
@@ -153,11 +164,13 @@ export const toggleAgent = createServerFn({ method: 'POST' })
   )
   .handler(async ({ data, context }) => {
     const sql = getDb();
-    await sql`
+    const rows = await sql`
       UPDATE agents SET status = ${data.status}, updated_at = now()
       WHERE id = ${data.id} AND owner_id = ${context.userId}
+      RETURNING id, harness_address
     `;
-    return { ok: true };
+    if (!rows.length) throw new Error('Agent not found');
+    return { ok: true, harness_address: rows[0].harness_address };
   });
 
 export const deleteAgent = createServerFn({ method: 'POST' })
@@ -177,158 +190,64 @@ export const forkTemplate = createServerFn({ method: 'POST' })
     const tpls = await sql`SELECT * FROM agents WHERE id = ${data.template_id} AND is_template = true`;
     const tpl = tpls[0];
     if (!tpl) throw new Error('Template not found');
-    const rows = await sql`
-      INSERT INTO agents (owner_id, name, description, trigger, ai_prompt, action, is_template, forked_from, status, category)
-      VALUES (${context.userId}, ${tpl.name as string}, ${tpl.description as string},
-              ${JSON.stringify(tpl.trigger)}, ${tpl.ai_prompt as string},
-              ${JSON.stringify(tpl.action)}, false, ${tpl.id as string},
-              'active', ${tpl.category as string | null})
-      RETURNING *
-    `;
-    return rows[0];
+    // Return template data for the builder to deploy on-chain first
+    return {
+      name: tpl.name as string,
+      description: tpl.description as string,
+      trigger: tpl.trigger,
+      ai_prompt: tpl.ai_prompt as string,
+      action: tpl.action,
+      forked_from: tpl.id as string,
+    };
   });
 
-export const tickAgents = createServerFn({ method: 'POST' })
+// Record a funding event after on-chain tx confirms
+export const recordFunding = createServerFn({ method: 'POST' })
   .middleware([attachAuth, requireAuth])
-  .handler(async ({ context }) => {
-    const sql = getDb();
-    const agents = await sql`
-      SELECT * FROM agents WHERE owner_id = ${context.userId} AND status = 'active'
-    `;
-    if (!agents.length) return { runs: 0 };
-
-    let runCount = 0;
-    const numEvents = Math.min(2, agents.length);
-    for (let i = 0; i < numEvents; i++) {
-      const event = generateEvent();
-      const matching = agents.filter((a) => {
-        const trig = (a.trigger ?? {}) as { type?: string };
-        return trig.type === event.type;
-      });
-      if (!matching.length) continue;
-      const agent = matching[Math.floor(Math.random() * matching.length)];
-
-      let decision: { act: boolean; reason: string } = { act: true, reason: 'No AI prompt configured.' };
-      if ((agent.ai_prompt as string)?.trim().length > 0) {
-        const withinLimit = await checkAiRateLimit(sql, context.userId);
-        decision = withinLimit
-          ? await aiDecide(agent.ai_prompt as string, event)
-          : { act: false, reason: `AI rate limit reached (${AI_CALLS_PER_HOUR_LIMIT} calls/hour).` };
-      }
-
-      if (!decision.act) {
-        await sql`
-          INSERT INTO agent_runs (agent_id, owner_id, trigger_payload, ai_decision, status)
-          VALUES (${agent.id as string}, ${context.userId},
-                  ${JSON.stringify(event)}, ${JSON.stringify(decision)}, 'skipped')
-        `;
-        runCount++;
-        continue;
-      }
-
-      const result = executeAction(agent.action as { type: string; params?: Record<string, unknown> });
-      await sql`
-        INSERT INTO agent_runs (agent_id, owner_id, trigger_payload, ai_decision, action_result, status, tx_hash)
-        VALUES (${agent.id as string}, ${context.userId},
-                ${JSON.stringify(event)}, ${JSON.stringify(decision)},
-                ${JSON.stringify(result)}, ${result.success ? 'success' : 'failed'},
-                ${result.tx_hash ?? null})
-      `;
-      runCount++;
-    }
-    return { runs: runCount };
-  });
-
-const AI_CALLS_PER_HOUR_LIMIT = 50;
-
-async function checkAiRateLimit(
-  sql: ReturnType<typeof getDb>,
-  userId: string,
-): Promise<boolean> {
-  const since = new Date(Date.now() - 3_600_000).toISOString();
-  const rows = await sql`
-    SELECT COUNT(*) as cnt FROM agent_runs
-    WHERE owner_id = ${userId} AND status != 'skipped' AND created_at >= ${since}
-  `;
-  return Number((rows[0] as { cnt: string }).cnt) < AI_CALLS_PER_HOUR_LIMIT;
-}
-
-async function aiDecide(
-  prompt: string,
-  event: { type: string; payload: Record<string, unknown> },
-): Promise<{ act: boolean; reason: string }> {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) return { act: true, reason: 'AI gateway unavailable, defaulting to act.' };
-  try {
-    const res = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: "You are an autonomous onchain agent's decision engine. Respond by calling the decide tool." },
-          { role: 'user', content: `Agent policy:\n${prompt}\n\nChain event (${event.type}):\n${JSON.stringify(event.payload)}` },
-        ],
-        tools: [{
-          type: 'function',
-          function: {
-            name: 'decide',
-            description: 'Decide whether the agent should act on this event.',
-            parameters: {
-              type: 'object',
-              properties: {
-                act: { type: 'boolean', description: 'True to execute, false to skip.' },
-                reason: { type: 'string', description: 'Short justification (1-2 sentences).' },
-              },
-              required: ['act', 'reason'],
-              additionalProperties: false,
-            },
-          },
-        }],
-        tool_choice: { type: 'function', function: { name: 'decide' } },
-      }),
-    });
-    if (!res.ok) return { act: true, reason: `AI fallback (HTTP ${res.status}).` };
-    const json = await res.json();
-    const tc = json.choices?.[0]?.message?.tool_calls?.[0];
-    if (!tc) return { act: true, reason: 'AI returned no decision; defaulting to act.' };
-    const args = JSON.parse(tc.function.arguments);
-    return { act: !!args.act, reason: String(args.reason ?? '') };
-  } catch {
-    return { act: true, reason: 'AI request failed; defaulting to act.' };
-  }
-}
-
-export const testRunAgent = createServerFn({ method: 'POST' })
-  .middleware([attachAuth, requireAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z.object({
+      agent_id: z.string().uuid(),
+      tx_hash: z.string(),
+      amount_wei: z.string(),
+    }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const sql = getDb();
-    const rows = await sql`
-      SELECT id, name, ai_prompt, trigger, action FROM agents
-      WHERE id = ${data.id} AND owner_id = ${context.userId}
+    await sql`
+      INSERT INTO agent_runs (agent_id, owner_id, trigger_payload, status, tx_hash)
+      VALUES (
+        ${data.agent_id}, ${context.userId},
+        ${JSON.stringify({ type: 'funding', amount_wei: data.amount_wei })},
+        'success', ${data.tx_hash}
+      )
     `;
-    const agent = rows[0];
-    if (!agent) throw new Error('Agent not found');
+    return { ok: true };
+  });
 
-    const event = generateEvent();
-    const trig = (agent.trigger ?? {}) as { type?: string };
-    if (trig.type) (event as { type: string }).type = trig.type as typeof event.type;
-
-    let decision: { act: boolean; reason: string } = { act: true, reason: 'No AI prompt — agent would always execute.' };
-    const prompt = (agent.ai_prompt as string | null) ?? '';
-    if (prompt.trim().length > 0) {
-      const withinLimit = await checkAiRateLimit(sql, context.userId);
-      decision = withinLimit
-        ? await aiDecide(prompt, event)
-        : { act: false, reason: `AI rate limit reached (${AI_CALLS_PER_HOUR_LIMIT} calls/hour).` };
-    }
-
-    const wouldExecute = decision.act;
-    const mockResult = wouldExecute
-      ? executeAction(agent.action as { type: string; params?: Record<string, unknown> })
-      : null;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return { event: JSON.parse(JSON.stringify(event)) as any, decision, wouldExecute, mockResult: mockResult as any };
+// Record stop/restart on-chain event after tx confirms
+export const recordLifecycle = createServerFn({ method: 'POST' })
+  .middleware([attachAuth, requireAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      agent_id: z.string().uuid(),
+      tx_hash: z.string(),
+      action: z.enum(['stopped', 'restarted']),
+      new_status: z.enum(['active', 'paused']),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const sql = getDb();
+    await sql`
+      UPDATE agents SET status = ${data.new_status}, updated_at = now()
+      WHERE id = ${data.agent_id} AND owner_id = ${context.userId}
+    `;
+    await sql`
+      INSERT INTO agent_runs (agent_id, owner_id, trigger_payload, status, tx_hash)
+      VALUES (
+        ${data.agent_id}, ${context.userId},
+        ${JSON.stringify({ type: 'lifecycle', action: data.action })},
+        ${data.action as string}, ${data.tx_hash}
+      )
+    `;
+    return { ok: true };
   });

@@ -41,9 +41,9 @@ export function Header() {
         <nav className="hidden items-center gap-1 md:flex">
           {authenticated && (
             <>
-              <NavLink to="/app" exact>Dashboard</NavLink>
+              <NavLink to="/app" exact>Agents</NavLink>
               <NavLink to="/app/builder">Builder</NavLink>
-              <NavLink to="/app/marketplace">Marketplace</NavLink>
+              <NavLink to="/app/marketplace">Templates</NavLink>
             </>
           )}
         </nav>
@@ -52,12 +52,14 @@ export function Header() {
             <>
               <div className="hidden items-center gap-2 rounded-full border border-border bg-card/40 px-3 py-1.5 sm:flex">
                 <span className="h-2 w-2 animate-pulse-slow rounded-full bg-success" />
-                <span className="font-mono-tabular text-xs text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground">
                   {shortAddress(walletAddress)}
                 </span>
               </div>
               <Button variant="ghost" size="icon" asChild aria-label="Settings">
-                <Link to="/app/settings"><Settings className="h-4 w-4" /></Link>
+                <Link to="/app/settings">
+                  <Settings className="h-4 w-4" />
+                </Link>
               </Button>
               <Button variant="ghost" size="icon" onClick={onDisconnect} aria-label="Disconnect">
                 <LogOut className="h-4 w-4" />
@@ -70,7 +72,7 @@ export function Header() {
               className="bg-gradient-primary neon-glow text-primary-foreground hover:opacity-90"
             >
               <Wallet className="mr-2 h-4 w-4" />
-              {busy ? "Connecting…" : "Connect Wallet"}
+              {busy ? "Connecting..." : "Connect Wallet"}
             </Button>
           )}
         </div>
@@ -79,7 +81,15 @@ export function Header() {
   );
 }
 
-function NavLink({ to, children, exact }: { to: string; children: React.ReactNode; exact?: boolean }) {
+function NavLink({
+  to,
+  children,
+  exact,
+}: {
+  to: string;
+  children: React.ReactNode;
+  exact?: boolean;
+}) {
   return (
     <Link
       to={to}
