@@ -31,7 +31,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSendTransaction } from "@privy-io/react-auth";
+import { usePrivy, useSendTransaction } from "@privy-io/react-auth";
 import { parseEther, formatEther } from "viem";
 import {
   RITUAL_EXPLORER,
@@ -80,7 +80,9 @@ type Run = {
 function AgentDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const { user } = usePrivy();
   const { sendTransaction } = useSendTransaction();
+  const walletAddress = user?.wallet?.address;
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
@@ -138,11 +140,10 @@ function AgentDetail() {
     setFunding(true);
     try {
       const value = parseEther(fundAmount as `${number}`);
-      const result = await sendTransaction({
-        to: agent.harness_address as `0x${string}`,
-        value,
-        chainId: RITUAL_CHAIN_ID,
-      });
+      const result = await sendTransaction(
+        { to: agent.harness_address as `0x${string}`, value, chainId: RITUAL_CHAIN_ID },
+        { address: walletAddress as `0x${string}` },
+      );
       const txHash = typeof result === "string" ? result : (result as { hash?: string })?.hash;
       if (!txHash) { toast.error("Transaction did not return a hash"); return; }
 
@@ -179,11 +180,10 @@ function AgentDetail() {
     if (!agent?.harness_address) return;
     setStopping(true);
     try {
-      const result = await sendTransaction({
-        to: agent.harness_address as `0x${string}`,
-        data: encodeStop(),
-        chainId: RITUAL_CHAIN_ID,
-      });
+      const result = await sendTransaction(
+        { to: agent.harness_address as `0x${string}`, data: encodeStop(), chainId: RITUAL_CHAIN_ID },
+        { address: walletAddress as `0x${string}` },
+      );
       const txHash = typeof result === "string" ? result : (result as { hash?: string })?.hash;
       if (!txHash) { toast.error("Transaction did not return a hash"); return; }
 
@@ -216,11 +216,10 @@ function AgentDetail() {
     if (!agent?.harness_address) return;
     setRestarting(true);
     try {
-      const result = await sendTransaction({
-        to: agent.harness_address as `0x${string}`,
-        data: encodeRestart(),
-        chainId: RITUAL_CHAIN_ID,
-      });
+      const result = await sendTransaction(
+        { to: agent.harness_address as `0x${string}`, data: encodeRestart(), chainId: RITUAL_CHAIN_ID },
+        { address: walletAddress as `0x${string}` },
+      );
       const txHash = typeof result === "string" ? result : (result as { hash?: string })?.hash;
       if (!txHash) { toast.error("Transaction did not return a hash"); return; }
 

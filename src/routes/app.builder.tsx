@@ -145,11 +145,10 @@ function Builder() {
 
       toast.info("Confirm the deployment transaction in your wallet.");
 
-      const result = await sendTransaction({
-        to: SOVEREIGN_FACTORY,
-        data: calldata,
-        chainId: RITUAL_CHAIN_ID,
-      });
+      const result = await sendTransaction(
+        { to: SOVEREIGN_FACTORY, data: calldata, chainId: RITUAL_CHAIN_ID },
+        { address: walletAddress as `0x${string}` },
+      );
 
       const txHash = typeof result === "string" ? result : (result as { hash?: string })?.hash;
 
